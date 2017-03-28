@@ -55,7 +55,6 @@
 /******************************************************************************/
 /************************ Variables Definitions *******************************/
 /******************************************************************************/
-struct dds_state dds_st[2];
 
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
@@ -79,12 +78,40 @@ const uint16_t sine_lut[128] = {
 		0xCF0, 0xD4E, 0xDAD, 0xE0E, 0xE70, 0xED3, 0xF37, 0xF9B
 };
 
+const uint32_t sine_lut_iq[128] = {
+		0x00002660, 0x01E02650, 0x03C02630, 0x05A025F0, 0x077025A0,
+		0x09502530, 0x0B2024B0, 0x0CE02420, 0x0EB02370, 0x106022B0,
+		0x121021D0, 0x13B020E0, 0x15501FE0, 0x16D01ED0, 0x18501DA0,
+		0x19C01C70, 0x1B201B20, 0x1C7019C0, 0x1DA01850, 0x1ED016D0,
+		0x1FE01550, 0x20E013B0, 0x21D01210, 0x22B01060, 0x23700EB0,
+		0x24200CE0, 0x24B00B20, 0x25300950, 0x25A00770, 0x25F005A0,
+		0x263003C0, 0x265001E0, 0x26600000, 0x2650FE10, 0x2630FC30,
+		0x25F0FA50, 0x25A0F880, 0x2530F6A0, 0x24B0F4D0, 0x2420F310,
+		0x2370F150, 0x22B0EF90, 0x21D0EDE0, 0x20E0EC40, 0x1FE0EAA0,
+		0x1ED0E920, 0x1DA0E7A0, 0x1C70E630, 0x1B20E4D0, 0x19C0E390,
+		0x1850E250, 0x16D0E120, 0x1550E010, 0x13B0DF10, 0x1210DE20,
+		0x1060DD40, 0x0EB0DC80, 0x0CE0DBD0, 0x0B20DB40, 0x0950DAC0,
+		0x0770DA50, 0x05A0DA00, 0x03C0D9C0, 0x01E0D9A0, 0x0000D990,
+		0xFE10D9A0, 0xFC30D9C0, 0xFA50DA00, 0xF880DA50, 0xF6A0DAC0,
+		0xF4D0DB40, 0xF310DBD0, 0xF150DC80, 0xEF90DD40, 0xEDE0DE20,
+		0xEC40DF10, 0xEAA0E010, 0xE920E120, 0xE7A0E250, 0xE630E390,
+		0xE4D0E4D0, 0xE390E630, 0xE250E7A0, 0xE120E920, 0xE010EAA0,
+		0xDF10EC40, 0xDE20EDE0, 0xDD40EF90, 0xDC80F150, 0xDBD0F310,
+		0xDB40F4D0, 0xDAC0F6A0, 0xDA50F880, 0xDA00FA50, 0xD9C0FC30,
+		0xD9A0FE10, 0xD9900000, 0xD9A001E0, 0xD9C003C0, 0xDA0005A0,
+		0xDA500770, 0xDAC00950, 0xDB400B20, 0xDBD00CE0, 0xDC800EB0,
+		0xDD401060, 0xDE201210, 0xDF1013B0, 0xE0101550, 0xE12016D0,
+		0xE2501850, 0xE39019C0, 0xE4D01B20, 0xE6301C70, 0xE7A01DA0,
+		0xE9201ED0, 0xEAA01FE0, 0xEC4020E0, 0xEDE021D0, 0xEF9022B0,
+		0xF1502370, 0xF3102420, 0xF4D024B0, 0xF6A02530, 0xF88025A0,
+		0xFA5025F0, 0xFC302630, 0xFE102650
+};
 /***************************************************************************//**
  * @brief dac_read
 *******************************************************************************/
-void dac_read(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t *data)
+void dac_read(dds_state *dds, uint32_t regAddr, uint32_t *data)
 {
-	switch (phy->id_no)
+	switch (dds->id_no)
 	{
 	case 0:
 		*data = Xil_In32(AD9361_TX_0_BASEADDR + regAddr);
@@ -100,9 +127,9 @@ void dac_read(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t *data)
 /***************************************************************************//**
  * @brief dac_write
 *******************************************************************************/
-void dac_write(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t data)
+void dac_write(dds_state *dds, uint32_t regAddr, uint32_t data)
 {
-	switch (phy->id_no)
+	switch (dds->id_no)
 	{
 	case 0:
 		Xil_Out32(AD9361_TX_0_BASEADDR + regAddr, data);
@@ -134,16 +161,16 @@ void dac_dma_write(uint32_t regAddr, uint32_t data)
 /***************************************************************************//**
  * @brief dds_default_setup
 *******************************************************************************/
-int32_t dds_default_setup(struct ad9361_rf_phy *phy,
-							 uint32_t chan, uint32_t phase,
-							 uint32_t freq, int32_t scale)
+int32_t dds_default_setup(dds_state *dds,
+						  uint32_t chan, uint32_t phase,
+						  uint32_t freq, int32_t scale)
 {
-	dds_set_phase(phy, chan, phase);
-	dds_set_frequency(phy, chan, freq);
-	dds_set_scale(phy, chan, scale);
-	dds_st[phy->id_no].cached_freq[chan] = freq;
-	dds_st[phy->id_no].cached_phase[chan] = phase;
-	dds_st[phy->id_no].cached_scale[chan] = scale;
+	dds_set_phase(dds, chan, phase);
+	dds_set_frequency(dds, chan, freq);
+	dds_set_scale(dds, chan, scale);
+	dds[dds->id_no].cached_freq[chan] = freq;
+	dds[dds->id_no].cached_phase[chan] = phase;
+	dds[dds->id_no].cached_scale[chan] = scale;
 
 	return 0;
 }
@@ -151,235 +178,200 @@ int32_t dds_default_setup(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief dac_stop
 *******************************************************************************/
-void dac_stop(struct ad9361_rf_phy *phy)
+void dac_stop(dds_state *dds)
 {
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) < 8)
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8)
 	{
-		dac_write(phy, DAC_REG_CNTRL_1, 0);
+		dac_write(dds, DAC_REG_CNTRL_1, 0);
 	}
 }
 
 /***************************************************************************//**
  * @brief dac_start_sync
 *******************************************************************************/
-void dac_start_sync(struct ad9361_rf_phy *phy, bool force_on)
+void dac_start_sync(dds_state *dds, bool force_on)
 {
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) < 8)
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8)
 	{
-		dac_write(phy, DAC_REG_CNTRL_1, (dds_st[phy->id_no].enable || force_on) ? DAC_ENABLE : 0);
+		dac_write(dds, DAC_REG_CNTRL_1, (dds[dds->id_no].enable || force_on) ? DAC_ENABLE : 0);
 	}
 	else
 	{
-		dac_write(phy, DAC_REG_CNTRL_1, DAC_SYNC);
+		dac_write(dds, DAC_REG_CNTRL_1, DAC_SYNC);
 	}
+}
+
+/***************************************************************************//**
+ * @brief dac_write_custom_data
+*******************************************************************************/
+void dac_write_custom_data(dds_state *dds,
+					  	   const uint32_t *custom_data_iq,
+						   uint32_t custom_tx_count)
+{
+	uint32_t index;
+	uint32_t index_mem = 0;
+	uint32_t length;
+	uint8_t chan;
+
+	for(index = 0; index < custom_tx_count; index++)
+	{
+		for (chan = 0; chan < dds->num_tx_channels; chan++)
+		{
+			Xil_Out32(dds->dac_ddr_baseaddr + index_mem * 4, custom_data_iq[index]);
+			index_mem++;
+		}
+	}
+	Xil_DCacheFlushRange(dds->dac_ddr_baseaddr, index_mem * 4);
+
+	length = index_mem * 4;
+
+	dac_dma_write(AXI_DMAC_REG_CTRL, 0);
+	dac_dma_write(AXI_DMAC_REG_CTRL, AXI_DMAC_CTRL_ENABLE);
+	dac_dma_write(AXI_DMAC_REG_SRC_ADDRESS, dds->dac_ddr_baseaddr);
+	dac_dma_write(AXI_DMAC_REG_SRC_STRIDE, 0x0);
+	dac_dma_write(AXI_DMAC_REG_X_LENGTH, length - 1);
+	dac_dma_write(AXI_DMAC_REG_Y_LENGTH, 0x0);
+	dac_dma_write(AXI_DMAC_REG_START_TRANSFER, 0x1);
 }
 
 /***************************************************************************//**
  * @brief dac_init
 *******************************************************************************/
-void dac_init(struct ad9361_rf_phy *phy, uint8_t data_sel, uint8_t config_dma)
+int32_t dac_init(dds_state **dds_st,
+				 enum dds_data_select data_sel,
+				 uint32_t *dac_clk,
+				 dds_state dds_state_init)
 {
-	uint32_t tx_count;
-	uint32_t index;
-	uint32_t index_i1;
-	uint32_t index_q1;
-	uint32_t index_i2;
-	uint32_t index_q2;
-	uint32_t index_mem;
-	uint32_t data_i1;
-	uint32_t data_q1;
-	uint32_t data_i2;
-	uint32_t data_q2;
-	uint32_t length;
+	dds_state *dds;
 	uint32_t reg_ctrl_2;
 
-	dac_write(phy, DAC_REG_RSTN, 0x0);
-	dac_write(phy, DAC_REG_RSTN, DAC_RSTN | DAC_MMCM_RSTN);
+	dds = (dds_state *)malloc(sizeof(*dds));
+	if (!dds)
+		return -1;
 
-	dds_st[phy->id_no].dac_clk = &phy->clks[TX_SAMPL_CLK]->rate;
-	dds_st[phy->id_no].rx2tx2 = phy->pdata->rx2tx2;
-	dac_read(phy, DAC_REG_CNTRL_2, &reg_ctrl_2);
-	if(dds_st[phy->id_no].rx2tx2)
+	dds->id_no = dds_state_init.id_no;
+	dds->num_tx_channels = dds_state_init.num_tx_channels;
+	dds->dac_ddr_baseaddr = dds_state_init.dac_ddr_baseaddr;
+
+	dac_write(dds, DAC_REG_RSTN, 0x0);
+	dac_write(dds, DAC_REG_RSTN, DAC_RSTN | DAC_MMCM_RSTN);
+
+	dds[dds->id_no].dac_clk = dac_clk;
+	dds[dds->id_no].rx2tx2 = dds_state_init.rx2tx2;
+
+	dac_read(dds, DAC_REG_CNTRL_2, &reg_ctrl_2);
+	if(dds[dds->id_no].rx2tx2 )
 	{
-		dds_st[phy->id_no].num_buf_channels = 4;
-		dac_write(phy, DAC_REG_RATECNTRL, DAC_RATE(3));
+		dds[dds->id_no].num_buf_channels = 4;
+		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(3));
 		reg_ctrl_2 &= ~DAC_R1_MODE;
 	}
 	else
 	{
-		dds_st[phy->id_no].num_buf_channels = 2;
-		dac_write(phy, DAC_REG_RATECNTRL, DAC_RATE(1));
+		dds[dds->id_no].num_buf_channels = 2;
+		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(1));
 		reg_ctrl_2 |= DAC_R1_MODE;
 	}
-	dac_write(phy, DAC_REG_CNTRL_2, reg_ctrl_2);
+	dac_write(dds, DAC_REG_CNTRL_2, reg_ctrl_2);
+	dac_read(dds, DAC_REG_VERSION, &dds[dds->id_no].pcore_version);
+	dac_stop(dds);
 
-	dac_read(phy, DAC_REG_VERSION, &dds_st[phy->id_no].pcore_version);
+	if (DATA_SEL_DDS == data_sel) {
+		dds_default_setup(dds, DDS_CHAN_TX1_I_F1, 90000, 1000000, 250000);
+		dds_default_setup(dds, DDS_CHAN_TX1_I_F2, 90000, 1000000, 250000);
+		dds_default_setup(dds, DDS_CHAN_TX1_Q_F1, 0, 1000000, 250000);
+		dds_default_setup(dds, DDS_CHAN_TX1_Q_F2, 0, 1000000, 250000);
 
-	dac_stop(phy);
-	switch (data_sel) {
-	case DATA_SEL_DDS:
-		dds_default_setup(phy, DDS_CHAN_TX1_I_F1, 90000, 1000000, 250000);
-		dds_default_setup(phy, DDS_CHAN_TX1_I_F2, 90000, 1000000, 250000);
-		dds_default_setup(phy, DDS_CHAN_TX1_Q_F1, 0, 1000000, 250000);
-		dds_default_setup(phy, DDS_CHAN_TX1_Q_F2, 0, 1000000, 250000);
-		if(dds_st[phy->id_no].rx2tx2)
+		if(dds[dds->id_no].rx2tx2)
 		{
-			dds_default_setup(phy, DDS_CHAN_TX2_I_F1, 90000, 1000000, 250000);
-			dds_default_setup(phy, DDS_CHAN_TX2_I_F2, 90000, 1000000, 250000);
-			dds_default_setup(phy, DDS_CHAN_TX2_Q_F1, 0, 1000000, 250000);
-			dds_default_setup(phy, DDS_CHAN_TX2_Q_F2, 0, 1000000, 250000);
+			dds_default_setup(dds, DDS_CHAN_TX2_I_F1, 90000, 1000000, 250000);
+			dds_default_setup(dds, DDS_CHAN_TX2_I_F2, 90000, 1000000, 250000);
+			dds_default_setup(dds, DDS_CHAN_TX2_Q_F1, 0, 1000000, 250000);
+			dds_default_setup(dds, DDS_CHAN_TX2_Q_F2, 0, 1000000, 250000);
 		}
-		dac_datasel(phy, -1, DATA_SEL_DDS);
-		break;
-	case DATA_SEL_DMA:
-		if(config_dma)
-		{
-			tx_count = sizeof(sine_lut) / sizeof(uint16_t);
-			if(dds_st[phy->id_no].rx2tx2)
-			{
-#ifdef FMCOMMS5
-				for(index = 0, index_mem = 0; index < (tx_count * 2); index += 2, index_mem += 4)
-#else
-				for(index = 0, index_mem = 0; index < (tx_count * 2); index += 2, index_mem += 2)
-#endif
-				{
-					index_i1 = index;
-					index_q1 = index + (tx_count / 2);
-					if(index_q1 >= (tx_count * 2))
-						index_q1 -= (tx_count * 2);
-					data_i1 = (sine_lut[index_i1 / 2] << 20);
-					data_q1 = (sine_lut[index_q1 / 2] << 4);
-					Xil_Out32(DAC_DDR_BASEADDR + index_mem * 4, data_i1 | data_q1);
-
-					index_i2 = index_i1;
-					index_q2 = index_q1;
-					if(index_i2 >= (tx_count * 2))
-						index_i2 -= (tx_count * 2);
-					if(index_q2 >= (tx_count * 2))
-						index_q2 -= (tx_count * 2);
-					data_i2 = (sine_lut[index_i2 / 2] << 20);
-					data_q2 = (sine_lut[index_q2 / 2] << 4);
-					Xil_Out32(DAC_DDR_BASEADDR + (index_mem + 1) * 4, data_i2 | data_q2);
-#ifdef FMCOMMS5
-					Xil_Out32(DAC_DDR_BASEADDR + (index_mem + 2) * 4, data_i1 | data_q1);
-					Xil_Out32(DAC_DDR_BASEADDR + (index_mem + 3) * 4, data_i2 | data_q2);
-#endif
-				}
-			}
-			else
-			{
-				for(index = 0; index < tx_count; index += 1)
-				{
-					index_i1 = index;
-					index_q1 = index + (tx_count / 4);
-					if(index_q1 >= tx_count)
-						index_q1 -= tx_count;
-					data_i1 = (sine_lut[index_i1] << 20);
-					data_q1 = (sine_lut[index_q1] << 4);
-					Xil_Out32(DAC_DDR_BASEADDR + index * 4, data_i1 | data_q1);
-				}
-			}
-			Xil_DCacheFlush();
-			if(dds_st[phy->id_no].rx2tx2)
-			{
-				length = (tx_count * 8);
-			}
-			else
-			{
-				length = (tx_count * 4);
-			}
-#ifdef FMCOMMS5
-			length = (tx_count * 16);
-#endif
-			dac_dma_write(AXI_DMAC_REG_CTRL, 0);
-			dac_dma_write(AXI_DMAC_REG_CTRL, AXI_DMAC_CTRL_ENABLE);
-			dac_dma_write(AXI_DMAC_REG_SRC_ADDRESS, DAC_DDR_BASEADDR);
-			dac_dma_write(AXI_DMAC_REG_SRC_STRIDE, 0x0);
-			dac_dma_write(AXI_DMAC_REG_X_LENGTH, length - 1);
-			dac_dma_write(AXI_DMAC_REG_Y_LENGTH, 0x0);
-			dac_dma_write(AXI_DMAC_REG_START_TRANSFER, 0x1);
-		}
-		dac_datasel(phy, -1, DATA_SEL_DMA);
-		break;
-	default:
-		break;
 	}
-	dds_st[phy->id_no].enable = true;
-	dac_start_sync(phy, 0);
+
+	dac_datasel(dds, -1, data_sel);
+	dds[dds->id_no].enable = dds_state_init.enable;
+	dac_start_sync(dds, 0);
+
+	*dds_st = dds;
+
+	return 0;
 }
 
 /***************************************************************************//**
  * @brief dds_set_frequency
 *******************************************************************************/
-void dds_set_frequency(struct ad9361_rf_phy *phy, uint32_t chan, uint32_t freq)
+void dds_set_frequency(dds_state *dds, uint32_t chan, uint32_t freq)
 {
 	uint64_t val64;
 	uint32_t reg;
 
-	dds_st[phy->id_no].cached_freq[chan] = freq;
-	dac_stop(phy);
-	dac_read(phy, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), &reg);
+	dds[dds->id_no].cached_freq[chan] = freq;
+	dac_stop(dds);
+	dac_read(dds, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), &reg);
 	reg &= ~DAC_DDS_INCR(~0);
 	val64 = (uint64_t) freq * 0xFFFFULL;
-	do_div(&val64, *dds_st[phy->id_no].dac_clk);
+	do_div(&val64, *dds[dds->id_no].dac_clk);
 	reg |= DAC_DDS_INCR(val64) | 1;
-	dac_write(phy, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), reg);
-	dac_start_sync(phy, 0);
+	dac_write(dds, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), reg);
+	dac_start_sync(dds, 0);
 }
 
 /***************************************************************************//**
  * @brief dds_get_frequency
 *******************************************************************************/
-void dds_get_frequency(struct ad9361_rf_phy *phy, uint32_t chan, uint32_t *freq)
+void dds_get_frequency(dds_state *dds, uint32_t chan, uint32_t *freq)
 {
-	*freq = dds_st[phy->id_no].cached_freq[chan];
+	*freq = dds[dds->id_no].cached_freq[chan];
 }
 
 /***************************************************************************//**
  * @brief dds_set_phase
 *******************************************************************************/
-void dds_set_phase(struct ad9361_rf_phy *phy, uint32_t chan, uint32_t phase)
+void dds_set_phase(dds_state *dds, uint32_t chan, uint32_t phase)
 {
 	uint64_t val64;
 	uint32_t reg;
 
-	dds_st[phy->id_no].cached_phase[chan] = phase;
-	dac_stop(phy);
-	dac_read(phy, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), &reg);
+	dds[dds->id_no].cached_phase[chan] = phase;
+	dac_stop(dds);
+	dac_read(dds, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), &reg);
 	reg &= ~DAC_DDS_INIT(~0);
 	val64 = (uint64_t) phase * 0x10000ULL + (360000 / 2);
 	do_div(&val64, 360000);
 	reg |= DAC_DDS_INIT(val64);
-	dac_write(phy, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), reg);
-	dac_start_sync(phy, 0);
+	dac_write(dds, DAC_REG_CHAN_CNTRL_2_IIOCHAN(chan), reg);
+	dac_start_sync(dds, 0);
 }
 
 /***************************************************************************//**
  * @brief dds_get_phase
 *******************************************************************************/
-void dds_get_phase(struct ad9361_rf_phy *phy, uint32_t chan, uint32_t *phase)
+void dds_get_phase(dds_state *dds, uint32_t chan, uint32_t *phase)
 {
-	*phase = dds_st[phy->id_no].cached_phase[chan];
+	*phase = dds[dds->id_no].cached_phase[chan];
 }
 
 /***************************************************************************//**
  * @brief dds_set_phase
 *******************************************************************************/
-void dds_set_scale(struct ad9361_rf_phy *phy, uint32_t chan, int32_t scale_micro_units)
+void dds_set_scale(dds_state *dds, uint32_t chan, int32_t scale_micro_units)
 {
 	uint32_t scale_reg;
 	uint32_t sign_part;
 	uint32_t int_part;
 	uint32_t fract_part;
 
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) > 6)
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) > 6)
 	{
 		if(scale_micro_units >= 1000000)
 		{
 			sign_part = 0;
 			int_part = 1;
 			fract_part = 0;
-			dds_st[phy->id_no].cached_scale[chan] = 1000000;
+			dds[dds->id_no].cached_scale[chan] = 1000000;
 			goto set_scale_reg;
 		}
 		if(scale_micro_units <= -1000000)
@@ -387,10 +379,10 @@ void dds_set_scale(struct ad9361_rf_phy *phy, uint32_t chan, int32_t scale_micro
 			sign_part = 1;
 			int_part = 1;
 			fract_part = 0;
-			dds_st[phy->id_no].cached_scale[chan] = -1000000;
+			dds[dds->id_no].cached_scale[chan] = -1000000;
 			goto set_scale_reg;
 		}
-		dds_st[phy->id_no].cached_scale[chan] = scale_micro_units;
+		dds[dds->id_no].cached_scale[chan] = scale_micro_units;
 		if(scale_micro_units < 0)
 		{
 			sign_part = 1;
@@ -418,54 +410,54 @@ void dds_set_scale(struct ad9361_rf_phy *phy, uint32_t chan, int32_t scale_micro
 			scale_reg = 0;
 			scale_micro_units = 0;
 		}
-		dds_st[phy->id_no].cached_scale[chan] = scale_micro_units;
+		dds[dds->id_no].cached_scale[chan] = scale_micro_units;
 		fract_part = (uint32_t)(scale_micro_units);
 		scale_reg = 500000 / fract_part;
 	}
-	dac_stop(phy);
-	dac_write(phy, DAC_REG_CHAN_CNTRL_1_IIOCHAN(chan), DAC_DDS_SCALE(scale_reg));
-	dac_start_sync(phy, 0);
+	dac_stop(dds);
+	dac_write(dds, DAC_REG_CHAN_CNTRL_1_IIOCHAN(chan), DAC_DDS_SCALE(scale_reg));
+	dac_start_sync(dds, 0);
 }
 
 /***************************************************************************//**
  * @brief dds_get_phase
 *******************************************************************************/
-void dds_get_scale(struct ad9361_rf_phy *phy, uint32_t chan, int32_t *scale_micro_units)
+void dds_get_scale(dds_state *dds, uint32_t chan, int32_t *scale_micro_units)
 {
-	*scale_micro_units = dds_st[phy->id_no].cached_scale[chan];
+	*scale_micro_units = dds[dds->id_no].cached_scale[chan];
 }
 
 /***************************************************************************//**
  * @brief dds_update
 *******************************************************************************/
-void dds_update(struct ad9361_rf_phy *phy)
+void dds_update(dds_state *dds)
 {
 	uint32_t chan;
 
 	for(chan = DDS_CHAN_TX1_I_F1; chan <= DDS_CHAN_TX2_Q_F2; chan++)
 	{
-		dds_set_frequency(phy, chan, dds_st[phy->id_no].cached_freq[chan]);
-		dds_set_phase(phy, chan, dds_st[phy->id_no].cached_phase[chan]);
-		dds_set_scale(phy, chan, dds_st[phy->id_no].cached_scale[chan]);
+		dds_set_frequency(dds, chan, dds[dds->id_no].cached_freq[chan]);
+		dds_set_phase(dds, chan, dds[dds->id_no].cached_phase[chan]);
+		dds_set_scale(dds, chan, dds[dds->id_no].cached_scale[chan]);
 	}
 }
 
 /***************************************************************************//**
  * @brief dac_datasel
 *******************************************************************************/
-int32_t dac_datasel(struct ad9361_rf_phy *phy, int32_t chan, enum dds_data_select sel)
+int32_t dac_datasel(dds_state *dds, int32_t chan, enum dds_data_select sel)
 {
 	int32_t i;
 
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) > 7) {
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) > 7) {
 		if (chan < 0) { /* ALL */
-			for (i = 0; i < dds_st[phy->id_no].num_buf_channels; i++) {
-				dac_write(phy, DAC_REG_CHAN_CNTRL_7(i), sel);
-				dds_st[phy->id_no].cached_datasel[i] = sel;
+			for (i = 0; i < dds[dds->id_no].num_buf_channels; i++) {
+				dac_write(dds, DAC_REG_CHAN_CNTRL_7(i), sel);
+				dds[dds->id_no].cached_datasel[i] = sel;
 			}
 		} else {
-			dac_write(phy, DAC_REG_CHAN_CNTRL_7(chan), sel);
-			dds_st[phy->id_no].cached_datasel[chan] = sel;
+			dac_write(dds, DAC_REG_CHAN_CNTRL_7(chan), sel);
+			dds[dds->id_no].cached_datasel[chan] = sel;
 		}
 	} else {
 		uint32_t reg;
@@ -474,16 +466,16 @@ int32_t dac_datasel(struct ad9361_rf_phy *phy, int32_t chan, enum dds_data_selec
 		case DATA_SEL_DDS:
 		case DATA_SEL_SED:
 		case DATA_SEL_DMA:
-			dac_read(phy, DAC_REG_CNTRL_2, &reg);
+			dac_read(dds, DAC_REG_CNTRL_2, &reg);
 			reg &= ~DAC_DATA_SEL(~0);
 			reg |= DAC_DATA_SEL(sel);
-			dac_write(phy, DAC_REG_CNTRL_2, reg);
+			dac_write(dds, DAC_REG_CNTRL_2, reg);
 			break;
 		default:
 			return -EINVAL;
 		}
-		for (i = 0; i < dds_st[phy->id_no].num_buf_channels; i++) {
-			dds_st[phy->id_no].cached_datasel[i] = sel;
+		for (i = 0; i < dds[dds->id_no].num_buf_channels; i++) {
+			dds[dds->id_no].cached_datasel[i] = sel;
 		}
 	}
 
@@ -493,9 +485,9 @@ int32_t dac_datasel(struct ad9361_rf_phy *phy, int32_t chan, enum dds_data_selec
 /***************************************************************************//**
  * @brief dac_get_datasel
 *******************************************************************************/
-void dac_get_datasel(struct ad9361_rf_phy *phy, int32_t chan, enum dds_data_select *sel)
+void dac_get_datasel(dds_state *dds, int32_t chan, enum dds_data_select *sel)
 {
-	*sel = dds_st[phy->id_no].cached_datasel[chan];
+	*sel = dds[dds->id_no].cached_datasel[chan];
 }
 
 /***************************************************************************//**
@@ -567,7 +559,7 @@ void dds_from_signed_mag_fmt(uint32_t val,
 /***************************************************************************//**
  * @brief dds_set_calib_scale_phase
 *******************************************************************************/
-int32_t dds_set_calib_scale_phase(struct ad9361_rf_phy *phy,
+int32_t dds_set_calib_scale_phase(dds_state *dds,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t val,
@@ -576,13 +568,13 @@ int32_t dds_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 	uint32_t reg;
 	uint32_t i;
 
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) < 8) {
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8) {
 		return -1;
 	}
 
 	i = dds_to_signed_mag_fmt(val, val2);
 
-	dac_read(phy, DAC_REG_CHAN_CNTRL_8(chan), &reg);
+	dac_read(dds, DAC_REG_CHAN_CNTRL_8(chan), &reg);
 
 	if (!((chan + phase) % 2)) {
 		reg &= ~DAC_IQCOR_COEFF_1(~0);
@@ -591,8 +583,8 @@ int32_t dds_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 		reg &= ~DAC_IQCOR_COEFF_2(~0);
 		reg |= DAC_IQCOR_COEFF_2(i);
 	}
-	dac_write(phy, DAC_REG_CHAN_CNTRL_8(chan), reg);
-	dac_write(phy, DAC_REG_CHAN_CNTRL_6(chan), DAC_IQCOR_ENB);
+	dac_write(dds, DAC_REG_CHAN_CNTRL_8(chan), reg);
+	dac_write(dds, DAC_REG_CHAN_CNTRL_6(chan), DAC_IQCOR_ENB);
 
 	return 0;
 }
@@ -600,7 +592,7 @@ int32_t dds_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief dds_get_calib_scale_phase
 *******************************************************************************/
-int32_t dds_get_calib_scale_phase(struct ad9361_rf_phy *phy,
+int32_t dds_get_calib_scale_phase(dds_state *dds,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t *val,
@@ -608,11 +600,11 @@ int32_t dds_get_calib_scale_phase(struct ad9361_rf_phy *phy,
 {
 	uint32_t reg;
 
-	if (PCORE_VERSION_MAJOR(dds_st[phy->id_no].pcore_version) < 8) {
+	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8) {
 		return -1;
 	}
 
-	dac_read(phy, DAC_REG_CHAN_CNTRL_8(chan), &reg);
+	dac_read(dds, DAC_REG_CHAN_CNTRL_8(chan), &reg);
 
 	/* format is 1.1.14 (sign, integer and fractional bits) */
 
@@ -630,43 +622,43 @@ int32_t dds_get_calib_scale_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief dds_set_calib_scale
 *******************************************************************************/
-int32_t dds_set_calib_scale(struct ad9361_rf_phy *phy,
+int32_t dds_set_calib_scale(dds_state *dds,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
 {
-	return dds_set_calib_scale_phase(phy, 0, chan, val, val2);
+	return dds_set_calib_scale_phase(dds, 0, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief dds_get_calib_scale
 *******************************************************************************/
-int32_t dds_get_calib_scale(struct ad9361_rf_phy *phy,
+int32_t dds_get_calib_scale(dds_state *dds,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)
 {
-	return dds_get_calib_scale_phase(phy, 0, chan, val, val2);
+	return dds_get_calib_scale_phase(dds, 0, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief dds_set_calib_phase
 *******************************************************************************/
-int32_t dds_set_calib_phase(struct ad9361_rf_phy *phy,
+int32_t dds_set_calib_phase(dds_state *dds,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
 {
-	return dds_set_calib_scale_phase(phy, 1, chan, val, val2);
+	return dds_set_calib_scale_phase(dds, 1, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief dds_get_calib_phase
 *******************************************************************************/
-int32_t dds_get_calib_phase(struct ad9361_rf_phy *phy,
+int32_t dds_get_calib_phase(dds_state *dds,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)
 {
-	return dds_get_calib_scale_phase(phy, 1, chan, val, val2);
+	return dds_get_calib_scale_phase(dds, 1, chan, val, val2);
 }

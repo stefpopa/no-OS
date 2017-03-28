@@ -357,7 +357,27 @@ AD9361_TXFIRConfig tx_fir_config = {	// BPF PASSBAND 3/20 fs to 1/4 fs
 	 {0, 0, 0, 0, 0, 0}, // tx_path_clks[6]
 	 0 // tx_bandwidth
 };
+
+dds_state dds_state_init_params = {
+		0,															// id_no
+		{1000000, 1000000, 1000000,	1000000,
+		 1000000, 1000000, 1000000, 1000000}, 						// cached_freq[8]
+		{90000, 90000, 0, 0, 90000, 90000, 0, 0}, 				  	// cached_phase[8]
+		{250000, 250000, 250000, 250000,
+		 250000, 250000, 250000, 250000}, 						  	// cached_scale[8]
+		{DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS,
+		 DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS}, 	// cached_datasel[8]
+		 NULL, 														// *dac_clk
+		 0,															// pcore_version
+		 4,															// num_buf_channels
+		 2,															// num_tx_channels
+		 true, 														// enable
+		 1,															// rx2tx2
+		 XPAR_DDR_MEM_BASEADDR + 0xA000000							// dac_ddr_baseaddr
+};
+
 struct ad9361_rf_phy *ad9361_phy;
+dds_state *dds;
 #ifdef FMCOMMS5
 struct ad9361_rf_phy *ad9361_phy_b;
 #endif
@@ -446,7 +466,14 @@ int main(void)
 #ifdef FMCOMMS5
 	dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
 #endif
-	dac_init(ad9361_phy, DATA_SEL_DMA, 1);
+	dac_init(&dds,
+			 DATA_SEL_DMA,
+			 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
+			 dds_state_init_params);
+
+	extern const uint32_t sine_lut_iq[128];
+
+	dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
 #else
 #ifdef FMCOMMS5
 	dac_init(ad9361_phy_b, DATA_SEL_DDS, 0);
