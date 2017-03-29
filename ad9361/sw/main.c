@@ -376,8 +376,17 @@ dds_state dds_state_init_params = {
 		 XPAR_DDR_MEM_BASEADDR + 0xA000000							// dac_ddr_baseaddr
 };
 
+#ifndef AXI_ADC_NOT_PRESENT
+adc_state adc_state_init_params = {
+		 0,															// id_no
+		 1,															// rx2tx2
+		 XPAR_DDR_MEM_BASEADDR + 0x800000							// adc_ddr_baseaddr
+};
+#endif
+
 struct ad9361_rf_phy *ad9361_phy;
 dds_state *dds;
+adc_state *adc_st;
 #ifdef FMCOMMS5
 struct ad9361_rf_phy *ad9361_phy_b;
 #endif
@@ -433,6 +442,10 @@ int main(void)
 	default_init_param.digital_interface_tune_fir_disable = 1;
 #endif
 
+
+#ifndef AXI_ADC_NOT_PRESENT
+	adc_init(&adc_st, adc_state_init_params);
+#endif
 	ad9361_init(&ad9361_phy, &default_init_param);
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
@@ -494,7 +507,7 @@ int main(void)
     // size of the capture and the start address must be alinged to the size
     // of the cache line.
 	mdelay(1000);
-    adc_capture(16384, ADC_DDR_BASEADDR);
+    adc_capture(adc_st, 16384);
     Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384);
 #endif
 #endif

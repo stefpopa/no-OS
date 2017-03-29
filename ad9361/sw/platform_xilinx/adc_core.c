@@ -56,14 +56,13 @@
 /******************************************************************************/
 /************************ Variables Definitions *******************************/
 /******************************************************************************/
-struct adc_state adc_st;
 
 /***************************************************************************//**
  * @brief adc_read
 *******************************************************************************/
-void adc_read(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t *data)
+void adc_read(uint8_t id_no, uint32_t regAddr, uint32_t *data)
 {
-	switch (phy->id_no)
+	switch (id_no)
 	{
 	case 0:
 		*data = Xil_In32(AD9361_RX_0_BASEADDR + regAddr);
@@ -79,9 +78,9 @@ void adc_read(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t *data)
 /***************************************************************************//**
  * @brief adc_write
 *******************************************************************************/
-void adc_write(struct ad9361_rf_phy *phy, uint32_t regAddr, uint32_t data)
+void adc_write(uint8_t id_no, uint32_t regAddr, uint32_t data)
 {
-	switch (phy->id_no)
+	switch (id_no)
 	{
 	case 0:
 		Xil_Out32(AD9361_RX_0_BASEADDR + regAddr, data);
@@ -113,40 +112,53 @@ void adc_dma_write(uint32_t regAddr, uint32_t data)
 /***************************************************************************//**
  * @brief adc_init
 *******************************************************************************/
-void adc_init(struct ad9361_rf_phy *phy)
+int32_t adc_init(adc_state **adc_st, adc_state adc_state_init)
 {
-	adc_write(phy, ADC_REG_RSTN, 0);
-	adc_write(phy, ADC_REG_RSTN, ADC_RSTN);
+	adc_state *adc;
 
-	adc_write(phy, ADC_REG_CHAN_CNTRL(0),
+	adc = (adc_state *)malloc(sizeof(*adc));
+	if (!adc)
+		return -1;
+
+	adc->id_no = adc_state_init.id_no;
+	adc->start_address = adc_state_init.start_address;
+
+	adc_write(adc->id_no, ADC_REG_RSTN, 0);
+	adc_write(adc->id_no, ADC_REG_RSTN, ADC_RSTN);
+
+	adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(0),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	adc_write(phy, ADC_REG_CHAN_CNTRL(1),
+	adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(1),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	adc_st.rx2tx2 = phy->pdata->rx2tx2;
-	if(adc_st.rx2tx2)
+	adc->rx2tx2 = adc_state_init.rx2tx2;
+	if(adc->rx2tx2)
 	{
-		adc_write(phy, ADC_REG_CHAN_CNTRL(2),
+		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(2),
 			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-		adc_write(phy, ADC_REG_CHAN_CNTRL(3),
+		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(3),
 			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
 	}
 	else
 	{
-		adc_write(phy, ADC_REG_CHAN_CNTRL(2), 0);
-		adc_write(phy, ADC_REG_CHAN_CNTRL(3), 0);
+		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(2), 0);
+		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(3), 0);
 	}
+
+	*adc_st = adc;
+
+	return 0;
 }
 
 /***************************************************************************//**
  * @brief adc_capture
 *******************************************************************************/
-int32_t adc_capture(uint32_t size, uint32_t start_address)
+int32_t adc_capture(adc_state *adc_st, uint32_t size)
 {
 	uint32_t reg_val;
 	uint32_t transfer_id;
 	uint32_t length;
 
-	if(adc_st.rx2tx2)
+	if(adc_st->rx2tx2)
 	{
 		length = (size * 8);
 	}
@@ -168,7 +180,7 @@ int32_t adc_capture(uint32_t size, uint32_t start_address)
 	adc_dma_read(AXI_DMAC_REG_IRQ_PENDING, &reg_val);
 	adc_dma_write(AXI_DMAC_REG_IRQ_PENDING, reg_val);
 
-	adc_dma_write(AXI_DMAC_REG_DEST_ADDRESS, start_address);
+	adc_dma_write(AXI_DMAC_REG_DEST_ADDRESS, adc_st->start_address);
 	adc_dma_write(AXI_DMAC_REG_DEST_STRIDE, 0x0);
 	adc_dma_write(AXI_DMAC_REG_X_LENGTH, length - 1);
 	adc_dma_write(AXI_DMAC_REG_Y_LENGTH, 0x0);
@@ -199,7 +211,7 @@ int32_t adc_capture(uint32_t size, uint32_t start_address)
 /***************************************************************************//**
  * @brief adc_set_calib_scale_phase
 *******************************************************************************/
-int32_t adc_set_calib_scale_phase(struct ad9361_rf_phy *phy,
+int32_t adc_set_calib_scale_phase(adc_state *adc_st,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t val,
@@ -231,7 +243,7 @@ int32_t adc_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 	do_div(&llval, 1000000UL);
 	fract |= llval;
 
-	adc_read(phy, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
+	adc_read(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
 
 	if (!((chan + phase) % 2)) {
 		tmp &= ~ADC_IQCOR_COEFF_1(~0);
@@ -241,7 +253,7 @@ int32_t adc_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 		tmp |= ADC_IQCOR_COEFF_2(fract);
 	}
 
-	adc_write(phy, ADC_REG_CHAN_CNTRL_2(chan), tmp);
+	adc_write(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), tmp);
 
 	return 0;
 }
@@ -249,7 +261,7 @@ int32_t adc_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief adc_get_calib_scale_phase
 *******************************************************************************/
-int32_t adc_get_calib_scale_phase(struct ad9361_rf_phy *phy,
+int32_t adc_get_calib_scale_phase(adc_state *adc_st,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t *val,
@@ -259,7 +271,7 @@ int32_t adc_get_calib_scale_phase(struct ad9361_rf_phy *phy,
 	int32_t sign;
 	uint64_t llval;
 
-	adc_read(phy, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
+	adc_read(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
 
 	/* format is 1.1.14 (sign, integer and fractional bits) */
 
@@ -294,43 +306,43 @@ int32_t adc_get_calib_scale_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief adc_set_calib_scale
 *******************************************************************************/
-int32_t adc_set_calib_scale(struct ad9361_rf_phy *phy,
+int32_t adc_set_calib_scale(adc_state *adc_st,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
 {
-	return adc_set_calib_scale_phase(phy, 0, chan, val, val2);
+	return adc_set_calib_scale_phase(adc_st, 0, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief adc_get_calib_scale
 *******************************************************************************/
-int32_t adc_get_calib_scale(struct ad9361_rf_phy *phy,
+int32_t adc_get_calib_scale(adc_state *adc_st,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)
 {
-	return adc_get_calib_scale_phase(phy, 0, chan, val, val2);
+	return adc_get_calib_scale_phase(adc_st, 0, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief adc_set_calib_phase
 *******************************************************************************/
-int32_t adc_set_calib_phase(struct ad9361_rf_phy *phy,
+int32_t adc_set_calib_phase(adc_state *adc_st,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
 {
-	return adc_set_calib_scale_phase(phy, 1, chan, val, val2);
+	return adc_set_calib_scale_phase(adc_st, 1, chan, val, val2);
 }
 
 /***************************************************************************//**
  * @brief adc_get_calib_phase
 *******************************************************************************/
-int32_t adc_get_calib_phase(struct ad9361_rf_phy *phy,
+int32_t adc_get_calib_phase(adc_state *adc_st,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)
 {
-	return adc_get_calib_scale_phase(phy, 1, chan, val, val2);
+	return adc_get_calib_scale_phase(adc_st, 1, chan, val, val2);
 }
