@@ -43,6 +43,7 @@
 /***************************** Include Files **********************************/
 /******************************************************************************/
 #include "ad9361.h"
+#include "util.h"
 
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
@@ -143,20 +144,13 @@
 #define AXI_DMAC_IRQ_SOT				(1 << 0)
 #define AXI_DMAC_IRQ_EOT				(1 << 1)
 
-typedef struct
-{
-	uint8_t id_no;
-	bool rx2tx2;
-	uint32_t start_address;
-}adc_state;
-
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
 int32_t adc_init(adc_state **adc_st, adc_state adc_state_init);
 int32_t adc_capture(adc_state *adc_st, uint32_t size);
-void adc_read(uint8_t id_no, uint32_t regAddr, uint32_t *data);
-void adc_write(uint8_t id_no, uint32_t regAddr, uint32_t data);
+void adc_read(adc_state *adc, uint32_t regAddr, uint32_t *data);
+void adc_write(adc_state *adc, uint32_t regAddr, uint32_t data);
 int32_t adc_set_calib_scale(adc_state *adc_st,
 							uint32_t chan,
 							int32_t val,

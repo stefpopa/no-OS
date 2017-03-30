@@ -382,11 +382,18 @@ adc_state adc_state_init_params = {
 		 1,															// rx2tx2
 		 XPAR_DDR_MEM_BASEADDR + 0x800000							// adc_ddr_baseaddr
 };
+
+axiadc_state_init axiadc_state_init_params = {
+		"AD9361",													// name
+		 4,															// num_channels
+		 61440000UL													// max_rate
+};
 #endif
 
 struct ad9361_rf_phy *ad9361_phy;
 dds_state *dds;
 adc_state *adc_st;
+struct axiadc_state *axiadc_st;
 #ifdef FMCOMMS5
 struct ad9361_rf_phy *ad9361_phy_b;
 #endif
@@ -445,8 +452,32 @@ int main(void)
 
 #ifndef AXI_ADC_NOT_PRESENT
 	adc_init(&adc_st, adc_state_init_params);
+	axiadc_init(&axiadc_st, axiadc_state_init_params);
+	axiadc_st->adc_st = adc_st;
 #endif
+
 	ad9361_init(&ad9361_phy, &default_init_param);
+
+#ifndef AXI_ADC_NOT_PRESENT
+	ad9361_phy->adc_conv = (struct axiadc_converter *)zmalloc(sizeof(*ad9361_phy->adc_conv));
+	if (!ad9361_phy->adc_conv) {
+		return -1;
+	}
+
+	ad9361_phy->adc_state = (struct axiadc_state *)zmalloc(sizeof(*ad9361_phy->adc_state));
+	if (!ad9361_phy->adc_state) {
+		return -1;
+	}
+
+	ad9361_phy->adc_state = (struct axiadc_state *)axiadc_st;
+	ad9361_phy->adc_conv = (struct axiadc_converter *)axiadc_st->cnv;
+
+	/* platform specific wrapper to call ad9361_post_setup() */
+	axiadc_post_setup(ad9361_phy);
+
+	free(ad9361_phy->adc_conv);
+	free(ad9361_phy->adc_state);
+#endif
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);

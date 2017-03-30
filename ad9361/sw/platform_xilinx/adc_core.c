@@ -46,7 +46,6 @@
 #include <xil_io.h>
 #include "adc_core.h"
 #include "parameters.h"
-#include "util.h"
 
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
@@ -60,9 +59,9 @@
 /***************************************************************************//**
  * @brief adc_read
 *******************************************************************************/
-void adc_read(uint8_t id_no, uint32_t regAddr, uint32_t *data)
+void adc_read(adc_state *adc, uint32_t regAddr, uint32_t *data)
 {
-	switch (id_no)
+	switch (adc->id_no)
 	{
 	case 0:
 		*data = Xil_In32(AD9361_RX_0_BASEADDR + regAddr);
@@ -78,9 +77,9 @@ void adc_read(uint8_t id_no, uint32_t regAddr, uint32_t *data)
 /***************************************************************************//**
  * @brief adc_write
 *******************************************************************************/
-void adc_write(uint8_t id_no, uint32_t regAddr, uint32_t data)
+void adc_write(adc_state *adc, uint32_t regAddr, uint32_t data)
 {
-	switch (id_no)
+	switch (adc->id_no)
 	{
 	case 0:
 		Xil_Out32(AD9361_RX_0_BASEADDR + regAddr, data);
@@ -123,25 +122,25 @@ int32_t adc_init(adc_state **adc_st, adc_state adc_state_init)
 	adc->id_no = adc_state_init.id_no;
 	adc->start_address = adc_state_init.start_address;
 
-	adc_write(adc->id_no, ADC_REG_RSTN, 0);
-	adc_write(adc->id_no, ADC_REG_RSTN, ADC_RSTN);
+	adc_write(adc, ADC_REG_RSTN, 0);
+	adc_write(adc, ADC_REG_RSTN, ADC_RSTN);
 
-	adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(0),
+	adc_write(adc, ADC_REG_CHAN_CNTRL(0),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(1),
+	adc_write(adc, ADC_REG_CHAN_CNTRL(1),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
 	adc->rx2tx2 = adc_state_init.rx2tx2;
 	if(adc->rx2tx2)
 	{
-		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(2),
+		adc_write(adc, ADC_REG_CHAN_CNTRL(2),
 			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(3),
+		adc_write(adc, ADC_REG_CHAN_CNTRL(3),
 			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
 	}
 	else
 	{
-		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(2), 0);
-		adc_write(adc->id_no, ADC_REG_CHAN_CNTRL(3), 0);
+		adc_write(adc, ADC_REG_CHAN_CNTRL(2), 0);
+		adc_write(adc, ADC_REG_CHAN_CNTRL(3), 0);
 	}
 
 	*adc_st = adc;
@@ -243,7 +242,7 @@ int32_t adc_set_calib_scale_phase(adc_state *adc_st,
 	do_div(&llval, 1000000UL);
 	fract |= llval;
 
-	adc_read(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
+	adc_read(adc_st, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
 
 	if (!((chan + phase) % 2)) {
 		tmp &= ~ADC_IQCOR_COEFF_1(~0);
@@ -253,7 +252,7 @@ int32_t adc_set_calib_scale_phase(adc_state *adc_st,
 		tmp |= ADC_IQCOR_COEFF_2(fract);
 	}
 
-	adc_write(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), tmp);
+	adc_write(adc_st, ADC_REG_CHAN_CNTRL_2(chan), tmp);
 
 	return 0;
 }
@@ -271,7 +270,7 @@ int32_t adc_get_calib_scale_phase(adc_state *adc_st,
 	int32_t sign;
 	uint64_t llval;
 
-	adc_read(adc_st->id_no, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
+	adc_read(adc_st, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
 
 	/* format is 1.1.14 (sign, integer and fractional bits) */
 

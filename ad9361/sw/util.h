@@ -92,9 +92,18 @@ struct spi_device {
 	uint8_t 		id_no;
 };
 
-struct axiadc_state {
-	struct ad9361_rf_phy	*phy;
+
+typedef struct
+{
+	uint8_t id_no;
+	bool rx2tx2;
+	uint32_t start_address;
+}adc_state;
+
+struct axiadc_state{
+	struct axiadc_converter	*cnv;
 	uint32_t				pcore_version;
+	adc_state				*adc_st;
 };
 
 struct axiadc_chip_info {
@@ -107,6 +116,13 @@ struct axiadc_converter {
 	struct axiadc_chip_info	*chip_info;
 	uint32_t				scratch_reg[16];
 };
+
+typedef struct {
+	char		*name;
+	int32_t		num_channels;
+	uint32_t	max_rate;
+}axiadc_state_init;
+
 
 #ifdef WIN32
 #include "basetsd.h"

@@ -310,10 +310,35 @@ unsigned long msleep_interruptible(unsigned int msecs)
 /***************************************************************************//**
  * @brief axiadc_init
 *******************************************************************************/
-void axiadc_init(struct ad9361_rf_phy *phy)
+int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 {
-	//adc_init(phy->id_no, phy->pdata->rx2tx2);
-	//dac_init(phy, DATA_SEL_DDS, 0, phy->clks[TX_SAMPL_CLK]->rate);
+	struct axiadc_state *st;
+	st = (struct axiadc_state *)malloc(sizeof(*st));
+	if (!st)
+		return -1;
+	st->cnv = (struct axiadc_converter *)malloc(sizeof(*st->cnv));
+	if (!st->cnv) {
+		return -1;
+	}
+
+	st->cnv->chip_info = (struct axiadc_chip_info *)malloc(sizeof(*st->cnv->chip_info));
+	if (!st->cnv->chip_info) {
+		return -1;
+	}
+
+	st->adc_st = (adc_state *)malloc(sizeof(*st->adc_st));
+	if (!st->adc_st) {
+		return -1;
+	}
+
+	st->pcore_version = axiadc_read(st, ADI_REG_VERSION);
+	st->cnv->chip_info->name = axiadc_init.name;
+	st->cnv->chip_info->max_rate = axiadc_init.max_rate;
+	st->cnv->chip_info->num_channels = axiadc_init.num_channels;
+
+	*state = st;
+
+	return 0;
 }
 
 /***************************************************************************//**
@@ -331,7 +356,7 @@ unsigned int axiadc_read(struct axiadc_state *st, unsigned long reg)
 {
 	uint32_t val;
 
-	adc_read(st->phy->id_no, reg, &val);
+	adc_read(st->adc_st, reg, &val);
 
 	return val;
 }
@@ -341,7 +366,7 @@ unsigned int axiadc_read(struct axiadc_state *st, unsigned long reg)
 *******************************************************************************/
 void axiadc_write(struct axiadc_state *st, unsigned reg, unsigned val)
 {
-	adc_write(st->phy->id_no, reg, val);
+	adc_write(st->adc_st, reg, val);
 }
 
 /***************************************************************************//**
