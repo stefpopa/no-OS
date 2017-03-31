@@ -147,7 +147,6 @@
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
-void adc_init(adc_state *adc);
 int32_t adc_capture(adc_state *adc_st, uint32_t size);
 void adc_read(adc_state *adc, uint32_t regAddr, uint32_t *data);
 void adc_write(adc_state *adc, uint32_t regAddr, uint32_t data);

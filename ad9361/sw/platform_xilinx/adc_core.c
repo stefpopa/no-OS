@@ -89,32 +89,6 @@ void adc_dma_write(uint32_t regAddr, uint32_t data)
 }
 
 /***************************************************************************//**
- * @brief adc_init
-*******************************************************************************/
-void adc_init(adc_state *adc)
-{
-	adc_write(adc, ADC_REG_RSTN, 0);
-	adc_write(adc, ADC_REG_RSTN, ADC_RSTN);
-
-	adc_write(adc, ADC_REG_CHAN_CNTRL(0),
-		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	adc_write(adc, ADC_REG_CHAN_CNTRL(1),
-		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	if(adc->rx2tx2)
-	{
-		adc_write(adc, ADC_REG_CHAN_CNTRL(2),
-			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-		adc_write(adc, ADC_REG_CHAN_CNTRL(3),
-			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	}
-	else
-	{
-		adc_write(adc, ADC_REG_CHAN_CNTRL(2), 0);
-		adc_write(adc, ADC_REG_CHAN_CNTRL(3), 0);
-	}
-}
-
-/***************************************************************************//**
  * @brief adc_capture
 *******************************************************************************/
 int32_t adc_capture(adc_state *adc_st, uint32_t size)
