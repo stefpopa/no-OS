@@ -450,24 +450,12 @@ int main(void)
 	ad9361_init(&ad9361_phy, &default_init_param);
 
 #ifndef AXI_ADC_NOT_PRESENT
-	ad9361_phy->adc_conv = (struct axiadc_converter *)zmalloc(sizeof(*ad9361_phy->adc_conv));
-	if (!ad9361_phy->adc_conv) {
-		return -1;
-	}
-
-	ad9361_phy->adc_state = (struct axiadc_state *)zmalloc(sizeof(*ad9361_phy->adc_state));
-	if (!ad9361_phy->adc_state) {
-		return -1;
-	}
-
-	ad9361_phy->adc_state = (struct axiadc_state *)axiadc_st;
-	ad9361_phy->adc_conv = (struct axiadc_converter *)axiadc_st->cnv;
+	axiadc_ad9361_alloc(ad9361_phy, axiadc_st);
 
 	/* platform specific wrapper to call ad9361_post_setup() */
 	axiadc_post_setup(ad9361_phy);
 
-	free(ad9361_phy->adc_conv);
-	free(ad9361_phy->adc_state);
+	axiadc_ad9361_dealloc(ad9361_phy);
 #endif
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);

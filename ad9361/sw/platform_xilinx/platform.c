@@ -390,6 +390,36 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 }
 
 /***************************************************************************//**
+ * @brief axiadc_ad9361_alloc
+*******************************************************************************/
+int32_t axiadc_ad9361_alloc(struct ad9361_rf_phy *phy, struct axiadc_state *st)
+{
+	phy->adc_conv = (struct axiadc_converter *)zmalloc(sizeof(*phy->adc_conv));
+	if (!phy->adc_conv) {
+		return -1;
+	}
+
+	phy->adc_state = (struct axiadc_state *)zmalloc(sizeof(*phy->adc_state));
+	if (!phy->adc_state) {
+		return -1;
+	}
+
+	phy->adc_state = st;
+	phy->adc_conv = st->cnv;
+
+	return 0;
+}
+
+/***************************************************************************//**
+ * @brief axiadc_ad9361_dealloc
+*******************************************************************************/
+void axiadc_ad9361_dealloc(struct ad9361_rf_phy *phy)
+{
+	free(phy->adc_conv);
+	free(phy->adc_state);
+}
+
+/***************************************************************************//**
  * @brief axiadc_post_setup
 *******************************************************************************/
 int axiadc_post_setup(struct ad9361_rf_phy *phy)
