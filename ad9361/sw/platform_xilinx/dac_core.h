@@ -159,6 +159,7 @@ typedef struct
 	bool					enable;
 	bool					rx2tx2;
 	uint32_t				dac_ddr_baseaddr;
+	uint32_t				ad9361_tx_baseaddr;
 } dds_state;
 
 #define DAC_REG_CHAN_CNTRL_6(c)		(0x0414 + (c) * 0x40)

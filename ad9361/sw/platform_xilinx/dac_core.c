@@ -111,17 +111,7 @@ const uint32_t sine_lut_iq[128] = {
 *******************************************************************************/
 void dac_read(dds_state *dds, uint32_t regAddr, uint32_t *data)
 {
-	switch (dds->id_no)
-	{
-	case 0:
-		*data = Xil_In32(AD9361_TX_0_BASEADDR + regAddr);
-		break;
-	case 1:
-		*data = Xil_In32(AD9361_TX_1_BASEADDR + regAddr);
-		break;
-	default:
-		break;
-	}
+	*data = Xil_In32(dds->ad9361_tx_baseaddr + regAddr);
 }
 
 /***************************************************************************//**
@@ -129,17 +119,7 @@ void dac_read(dds_state *dds, uint32_t regAddr, uint32_t *data)
 *******************************************************************************/
 void dac_write(dds_state *dds, uint32_t regAddr, uint32_t data)
 {
-	switch (dds->id_no)
-	{
-	case 0:
-		Xil_Out32(AD9361_TX_0_BASEADDR + regAddr, data);
-		break;
-	case 1:
-		Xil_Out32(AD9361_TX_1_BASEADDR + regAddr, data);
-		break;
-	default:
-		break;
-	}
+	Xil_Out32(dds->ad9361_tx_baseaddr + regAddr, data);
 }
 
 /***************************************************************************//**
@@ -250,6 +230,18 @@ int32_t dac_init(dds_state **dds_st,
 		return -1;
 
 	dds->id_no = dds_state_init.id_no;
+	switch (dds->id_no)
+	{
+	case 0:
+		dds->ad9361_tx_baseaddr = AD9361_TX_0_BASEADDR;
+		break;
+	case 1:
+		dds->ad9361_tx_baseaddr = AD9361_TX_1_BASEADDR;
+		break;
+	default:
+		break;
+	}
+
 	dds->num_tx_channels = dds_state_init.num_tx_channels;
 	dds->dac_ddr_baseaddr = dds_state_init.dac_ddr_baseaddr;
 
