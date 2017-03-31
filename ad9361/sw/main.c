@@ -376,13 +376,11 @@ dds_state dds_state_init_params = {
 		 XPAR_DDR_MEM_BASEADDR + 0xA000000							// dac_ddr_baseaddr
 };
 
-#ifndef AXI_ADC_NOT_PRESENT
 axiadc_state_init axiadc_state_init_params = {
 		 0,															// id_no
 		 1,															// rx2tx2
 		 XPAR_DDR_MEM_BASEADDR + 0x800000							// adc_ddr_baseaddr
 };
-#endif
 
 struct ad9361_rf_phy *ad9361_phy;
 dds_state *dds;
@@ -442,22 +440,17 @@ int main(void)
 	default_init_param.digital_interface_tune_fir_disable = 1;
 #endif
 
-
-#ifndef AXI_ADC_NOT_PRESENT
-	axiadc_init(&axiadc_st, axiadc_state_init_params);
-#endif
+	if (!AXI_ADC_NOT_PRESENT)
+		axiadc_init(&axiadc_st, axiadc_state_init_params);
 
 	ad9361_init(&ad9361_phy, &default_init_param);
 
-#ifndef AXI_ADC_NOT_PRESENT
-	axiadc_ad9361_alloc(ad9361_phy, axiadc_st);
-
-	/* platform specific wrapper to call ad9361_post_setup() */
-	axiadc_post_setup(ad9361_phy);
-
-	axiadc_ad9361_dealloc(ad9361_phy);
-#endif
-
+	if (!AXI_ADC_NOT_PRESENT) {
+		axiadc_ad9361_alloc(ad9361_phy, axiadc_st);
+		/* platform specific wrapper to call ad9361_post_setup() */
+		axiadc_post_setup(ad9361_phy);
+		axiadc_ad9361_dealloc(ad9361_phy);
+	}
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
 
@@ -483,44 +476,42 @@ int main(void)
 	ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
 #endif
 
-#ifndef AXI_ADC_NOT_PRESENT
-#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
-#ifdef DAC_DMA
-#ifdef FMCOMMS5
-	dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
-#endif
-	dac_init(&dds,
-			 DATA_SEL_DMA,
-			 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
-			 dds_state_init_params);
-
-	extern const uint32_t sine_lut_iq[128];
-
-	dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
-#else
-#ifdef FMCOMMS5
-	dac_init(ad9361_phy_b, DATA_SEL_DDS, 0);
-#endif
-	dac_init(ad9361_phy, DATA_SEL_DDS, 1);
-#endif
-#endif
-#endif
+	if (!AXI_ADC_NOT_PRESENT) {
+		#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
+		#ifdef DAC_DMA
+		#ifdef FMCOMMS5
+			dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
+		#endif
+			dac_init(&dds,
+					 DATA_SEL_DMA,
+					 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
+					 dds_state_init_params);
+			extern const uint32_t sine_lut_iq[128];
+			dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
+		#else
+		#ifdef FMCOMMS5
+		dac_init(ad9361_phy_b, DATA_SEL_DDS, 0);
+		#endif
+		dac_init(ad9361_phy, DATA_SEL_DDS, 1);
+		#endif
+		#endif
+}
 
 #ifdef FMCOMMS5
 	ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
 #endif
 
-#ifndef AXI_ADC_NOT_PRESENT
-#if defined XILINX_PLATFORM && defined CAPTURE_SCRIPT
-    // NOTE: To prevent unwanted data loss, it's recommended to invalidate
-    // cache after each adc_capture() call, keeping in mind that the
-    // size of the capture and the start address must be alinged to the size
-    // of the cache line.
-	mdelay(1000);
-    adc_capture(axiadc_st->adc_st, 16384);
-    Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384);
-#endif
-#endif
+	if (!AXI_ADC_NOT_PRESENT) {
+		#if defined XILINX_PLATFORM && defined CAPTURE_SCRIPT
+		// NOTE: To prevent unwanted data loss, it's recommended to invalidate
+		// cache after each adc_capture() call, keeping in mind that the
+		// size of the capture and the start address must be alinged to the size
+		// of the cache line.
+		mdelay(1000);
+		adc_capture(axiadc_st->adc_st, 16384);
+		Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384);
+		#endif
+	}
 
 #ifdef CONSOLE_COMMANDS
 	get_help(NULL, 0);
