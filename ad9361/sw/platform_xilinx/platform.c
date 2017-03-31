@@ -54,6 +54,7 @@
 #include "adc_core.h"
 #include "dac_core.h"
 #include "platform.h"
+#include "parameters.h"
 #ifdef _XPARAMETERS_PS_H_
 #include <sleep.h>
 #else
@@ -330,6 +331,23 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 	if (!st->adc_st) {
 		return -1;
 	}
+
+	st->adc_st->id_no = axiadc_init.id_no;
+	switch (st->adc_st->id_no)
+	{
+	case 0:
+		st->adc_st->ad9361_rx_baseaddr = AD9361_RX_0_BASEADDR;
+		break;
+	case 1:
+		st->adc_st->ad9361_rx_baseaddr = AD9361_RX_1_BASEADDR;
+		break;
+	default:
+		break;
+	}
+	st->adc_st->start_address = axiadc_init.start_address;
+	st->adc_st->rx2tx2 = axiadc_init.rx2tx2;
+
+	adc_init(st->adc_st);
 
 	st->pcore_version = axiadc_read(st, ADI_REG_VERSION);
 	st->cnv->chip_info->name = axiadc_init.name;

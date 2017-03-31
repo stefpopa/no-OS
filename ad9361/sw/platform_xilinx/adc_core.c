@@ -61,17 +61,7 @@
 *******************************************************************************/
 void adc_read(adc_state *adc, uint32_t regAddr, uint32_t *data)
 {
-	switch (adc->id_no)
-	{
-	case 0:
-		*data = Xil_In32(AD9361_RX_0_BASEADDR + regAddr);
-		break;
-	case 1:
-		*data = Xil_In32(AD9361_RX_1_BASEADDR + regAddr);
-		break;
-	default:
-		break;
-	}
+	*data = Xil_In32(adc->ad9361_rx_baseaddr + regAddr);
 }
 
 /***************************************************************************//**
@@ -79,17 +69,7 @@ void adc_read(adc_state *adc, uint32_t regAddr, uint32_t *data)
 *******************************************************************************/
 void adc_write(adc_state *adc, uint32_t regAddr, uint32_t data)
 {
-	switch (adc->id_no)
-	{
-	case 0:
-		Xil_Out32(AD9361_RX_0_BASEADDR + regAddr, data);
-		break;
-	case 1:
-		Xil_Out32(AD9361_RX_1_BASEADDR + regAddr, data);
-		break;
-	default:
-		break;
-	}
+	Xil_Out32((adc->ad9361_rx_baseaddr + regAddr), data);
 }
 
 /***************************************************************************//**
@@ -111,17 +91,8 @@ void adc_dma_write(uint32_t regAddr, uint32_t data)
 /***************************************************************************//**
  * @brief adc_init
 *******************************************************************************/
-int32_t adc_init(adc_state **adc_st, adc_state adc_state_init)
+void adc_init(adc_state *adc)
 {
-	adc_state *adc;
-
-	adc = (adc_state *)malloc(sizeof(*adc));
-	if (!adc)
-		return -1;
-
-	adc->id_no = adc_state_init.id_no;
-	adc->start_address = adc_state_init.start_address;
-
 	adc_write(adc, ADC_REG_RSTN, 0);
 	adc_write(adc, ADC_REG_RSTN, ADC_RSTN);
 
@@ -129,7 +100,6 @@ int32_t adc_init(adc_state **adc_st, adc_state adc_state_init)
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
 	adc_write(adc, ADC_REG_CHAN_CNTRL(1),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	adc->rx2tx2 = adc_state_init.rx2tx2;
 	if(adc->rx2tx2)
 	{
 		adc_write(adc, ADC_REG_CHAN_CNTRL(2),
@@ -142,10 +112,6 @@ int32_t adc_init(adc_state **adc_st, adc_state adc_state_init)
 		adc_write(adc, ADC_REG_CHAN_CNTRL(2), 0);
 		adc_write(adc, ADC_REG_CHAN_CNTRL(3), 0);
 	}
-
-	*adc_st = adc;
-
-	return 0;
 }
 
 /***************************************************************************//**
