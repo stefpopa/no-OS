@@ -378,9 +378,6 @@ dds_state dds_state_init_params = {
 
 #ifndef AXI_ADC_NOT_PRESENT
 axiadc_state_init axiadc_state_init_params = {
-		"AD9361",													// name
-		 4,															// num_channels
-		 61440000UL,												// max_rate
 		 0,															// id_no
 		 1,															// rx2tx2
 		 XPAR_DDR_MEM_BASEADDR + 0x800000							// adc_ddr_baseaddr

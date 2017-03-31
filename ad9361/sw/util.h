@@ -119,9 +119,6 @@ struct axiadc_converter {
 };
 
 typedef struct {
-	char		*name;
-	int32_t		num_channels;
-	uint32_t	max_rate;
 	uint8_t 	id_no;
 	bool 		rx2tx2;
 	uint32_t 	start_address;

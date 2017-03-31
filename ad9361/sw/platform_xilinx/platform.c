@@ -65,7 +65,22 @@ static inline void usleep(unsigned long usleep)
 	for(delay = 0; delay < usleep * 10; delay++);
 }
 #endif
-
+/******************************************************************************/
+/************************ Constants Definitions *******************************/
+/******************************************************************************/
+static struct axiadc_chip_info axiadc_chip_info_tbl[] =
+{
+	{
+ 		"AD9361",
+ 		4,
+ 		61440000UL,
+ 	},
+ 	{
+ 		"AD9364",
+ 		2,
+ 		122880000UL,
+ 	}
+ };
 /******************************************************************************/
 /************************ Variables Definitions *******************************/
 /******************************************************************************/
@@ -367,9 +382,7 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 	}
 
 	st->pcore_version = axiadc_read(st, ADI_REG_VERSION);
-	st->cnv->chip_info->name = axiadc_init.name;
-	st->cnv->chip_info->max_rate = axiadc_init.max_rate;
-	st->cnv->chip_info->num_channels = axiadc_init.num_channels;
+	st->cnv->chip_info = &axiadc_chip_info_tbl[st->adc_st->rx2tx2 ? ID_AD9361 : ID_AD9364];
 
 	*state = st;
 
