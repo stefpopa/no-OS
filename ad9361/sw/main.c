@@ -430,20 +430,16 @@ int main(void)
 
 	spi_init(SPI_DEVICE_ID, 1, 0);
 
-	if(FMCOMMS5)
-	{
+	if(FMCOMMS5 || PICOZED_SDR || PICOZED_SDR_CMOS)
 		default_init_param.xo_disable_use_ext_refclk_enable = 1;
-	}
-#if defined PICOZED_SDR || defined PICOZED_SDR_CMOS
-	default_init_param.xo_disable_use_ext_refclk_enable = 1;
-#endif
 
-#ifdef PICOZED_SDR_CMOS
-	default_init_param.lvds_rx_onchip_termination_enable = 0;
-	default_init_param.lvds_mode_enable = 0;
-	default_init_param.full_port_enable = 1;
-	default_init_param.digital_interface_tune_fir_disable = 1;
-#endif
+	if (PICOZED_SDR_CMOS) {
+		default_init_param.swap_ports_enable = 1;
+		default_init_param.lvds_mode_enable = 0;
+		default_init_param.lvds_rx_onchip_termination_enable = 0;
+		default_init_param.full_port_enable = 1;
+		default_init_param.digital_interface_tune_fir_disable = 1;
+	}
 
 	if (!AXI_ADC_NOT_PRESENT)
 		axiadc_init(&axiadc_st, axiadc_state_init_params);
