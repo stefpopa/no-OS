@@ -361,6 +361,7 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 	}
 	st->adc_st->start_address = axiadc_init.start_address;
 	st->adc_st->rx2tx2 = axiadc_init.rx2tx2;
+	st->adc_st->num_tx_channels = axiadc_init.num_tx_channels;
 
 	adc_write(st->adc_st, ADC_REG_RSTN, 0);
 	adc_write(st->adc_st, ADC_REG_RSTN, ADC_RSTN);

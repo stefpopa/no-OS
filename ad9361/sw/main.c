@@ -379,16 +379,14 @@ dds_state dds_state_init_params = {
 axiadc_state_init axiadc_state_init_params = {
 		 0,															// id_no
 		 1,															// rx2tx2
-		 XPAR_DDR_MEM_BASEADDR + 0x800000							// adc_ddr_baseaddr
+		 XPAR_DDR_MEM_BASEADDR + 0x800000,							// adc_ddr_baseaddr
+		 2															// num_tx_channels
 };
 
 struct ad9361_rf_phy *ad9361_phy;
+struct ad9361_rf_phy *ad9361_phy_b;
 dds_state *dds;
 struct axiadc_state *axiadc_st;
-#ifdef FMCOMMS5
-struct ad9361_rf_phy *ad9361_phy_b;
-#endif
-
 /***************************************************************************//**
  * @brief main
 *******************************************************************************/
@@ -409,16 +407,19 @@ int main(void)
 	// NOTE: The user has to choose the GPIO numbers according to desired
 	// carrier board.
 	default_init_param.gpio_resetb = GPIO_RESET_PIN;
-#ifdef FMCOMMS5
-	default_init_param.gpio_sync = GPIO_SYNC_PIN;
-	default_init_param.gpio_cal_sw1 = GPIO_CAL_SW1_PIN;
-	default_init_param.gpio_cal_sw2 = GPIO_CAL_SW2_PIN;
-	default_init_param.rx1rx2_phase_inversion_en = 1;
-#else
-	default_init_param.gpio_sync = -1;
-	default_init_param.gpio_cal_sw1 = -1;
-	default_init_param.gpio_cal_sw2 = -1;
-#endif
+	if (FMCOMMS5)
+	{
+		default_init_param.gpio_sync = GPIO_SYNC_PIN;
+		default_init_param.gpio_cal_sw1 = GPIO_CAL_SW1_PIN;
+		default_init_param.gpio_cal_sw2 = GPIO_CAL_SW2_PIN;
+		default_init_param.rx1rx2_phase_inversion_en = 1;
+	}
+	else
+	{
+		default_init_param.gpio_sync = -1;
+		default_init_param.gpio_cal_sw1 = -1;
+		default_init_param.gpio_cal_sw2 = -1;
+	}
 
 #ifdef LINUX_PLATFORM
 	gpio_init(default_init_param.gpio_resetb);
@@ -429,7 +430,11 @@ int main(void)
 
 	spi_init(SPI_DEVICE_ID, 1, 0);
 
-#if defined FMCOMMS5 || defined PICOZED_SDR || defined PICOZED_SDR_CMOS
+	if(FMCOMMS5)
+	{
+		default_init_param.xo_disable_use_ext_refclk_enable = 1;
+	}
+#if defined PICOZED_SDR || defined PICOZED_SDR_CMOS
 	default_init_param.xo_disable_use_ext_refclk_enable = 1;
 #endif
 
@@ -454,34 +459,32 @@ int main(void)
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
 
-#ifdef FMCOMMS5
-#ifdef LINUX_PLATFORM
-	gpio_init(default_init_param.gpio_sync);
-#endif
-	gpio_direction(default_init_param.gpio_sync, 1);
-	default_init_param.id_no = 1;
-	default_init_param.gpio_resetb = GPIO_RESET_PIN_2;
-#ifdef LINUX_PLATFORM
-	gpio_init(default_init_param.gpio_resetb);
-#endif
-	default_init_param.gpio_sync = -1;
-	default_init_param.gpio_cal_sw1 = -1;
-	default_init_param.gpio_cal_sw2 = -1;
-	default_init_param.rx_synthesizer_frequency_hz = 2300000000UL;
-	default_init_param.tx_synthesizer_frequency_hz = 2300000000UL;
-	gpio_direction(default_init_param.gpio_resetb, 1);
-	ad9361_init(&ad9361_phy_b, &default_init_param);
+	if(FMCOMMS5)
+	{
+	#ifdef LINUX_PLATFORM
+		gpio_init(default_init_param.gpio_sync);
+	#endif
+		gpio_direction(default_init_param.gpio_sync, 1);
+		default_init_param.id_no = 1;
+		default_init_param.gpio_resetb = GPIO_RESET_PIN_2;
+	#ifdef LINUX_PLATFORM
+		gpio_init(default_init_param.gpio_resetb);
+	#endif
+		default_init_param.gpio_sync = -1;
+		default_init_param.gpio_cal_sw1 = -1;
+		default_init_param.gpio_cal_sw2 = -1;
+		default_init_param.rx_synthesizer_frequency_hz = 2300000000UL;
+		default_init_param.tx_synthesizer_frequency_hz = 2300000000UL;
+		gpio_direction(default_init_param.gpio_resetb, 1);
+		ad9361_init(&ad9361_phy_b, &default_init_param);
 
-	ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
-	ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
-#endif
+		ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
+		ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
+	}
 
 	if (!AXI_ADC_NOT_PRESENT) {
 		#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
 		#ifdef DAC_DMA
-		#ifdef FMCOMMS5
-			dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
-		#endif
 			dac_init(&dds,
 					 DATA_SEL_DMA,
 					 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
@@ -489,17 +492,15 @@ int main(void)
 			extern const uint32_t sine_lut_iq[128];
 			dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
 		#else
-		#ifdef FMCOMMS5
-		dac_init(ad9361_phy_b, DATA_SEL_DDS, 0);
-		#endif
-		dac_init(ad9361_phy, DATA_SEL_DDS, 1);
+			dac_init(&dds,
+					 DATA_SEL_DDS,
+					 &ad9361_phy_b->clks[TX_SAMPL_CLK]->rate,
+					 dds_state_init_params);
 		#endif
 		#endif
 }
-
-#ifdef FMCOMMS5
-	ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
-#endif
+	if(FMCOMMS5)
+		ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
 
 	if (!AXI_ADC_NOT_PRESENT) {
 		#if defined XILINX_PLATFORM && defined CAPTURE_SCRIPT

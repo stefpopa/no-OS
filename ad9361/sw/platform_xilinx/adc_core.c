@@ -97,18 +97,7 @@ int32_t adc_capture(adc_state *adc_st, uint32_t size)
 	uint32_t transfer_id;
 	uint32_t length;
 
-	if(adc_st->rx2tx2)
-	{
-		length = (size * 8);
-	}
-	else
-	{
-		length = (size * 4);
-	}
-
-#ifdef FMCOMMS5
-	length = (size * 16);
-#endif
+	length = (size * adc_st->num_tx_channels * sizeof(uint32_t));
 
 	adc_dma_write(AXI_DMAC_REG_CTRL, 0x0);
 	adc_dma_write(AXI_DMAC_REG_CTRL, AXI_DMAC_CTRL_ENABLE);

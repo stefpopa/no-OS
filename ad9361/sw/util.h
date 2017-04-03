@@ -99,6 +99,7 @@ typedef struct
 	bool rx2tx2;
 	uint32_t start_address;
 	uint32_t ad9361_rx_baseaddr;
+	uint8_t	 num_tx_channels;
 }adc_state;
 
 struct axiadc_state{
@@ -122,6 +123,7 @@ typedef struct {
 	uint8_t 	id_no;
 	bool 		rx2tx2;
 	uint32_t 	start_address;
+	uint8_t		num_tx_channels;
 }axiadc_state_init;
 
 
