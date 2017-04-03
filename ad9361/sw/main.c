@@ -484,21 +484,26 @@ int main(void)
 
 	if (!AXI_ADC_NOT_PRESENT) {
 		#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
-		#ifdef DAC_DMA
+		enum dds_data_select sel;
+
+		sel = ((DAC_DMA) ? DATA_SEL_DMA : DATA_SEL_DDS);
+
+		if (!FMCOMMS5) {
 			dac_init(&dds,
-					 DATA_SEL_DMA,
+					 sel,
 					 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
 					 dds_state_init_params);
 			extern const uint32_t sine_lut_iq[128];
 			dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
-		#else
+		}
+		else {
 			dac_init(&dds,
-					 DATA_SEL_DDS,
+					 sel,
 					 &ad9361_phy_b->clks[TX_SAMPL_CLK]->rate,
 					 dds_state_init_params);
+		}
 		#endif
-		#endif
-}
+	}
 	if(FMCOMMS5)
 		ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
 
