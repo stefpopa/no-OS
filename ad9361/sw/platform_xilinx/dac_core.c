@@ -220,7 +220,7 @@ void dac_write_custom_data(dds_state *dds,
 int32_t dac_init(dds_state **dds_st,
 				 enum dds_data_select data_sel,
 				 uint32_t *dac_clk,
-				 dds_state dds_state_init)
+				 dds_state_init dds_init)
 {
 	dds_state *dds;
 	uint32_t reg_ctrl_2;
@@ -229,7 +229,7 @@ int32_t dac_init(dds_state **dds_st,
 	if (!dds)
 		return -1;
 
-	dds->id_no = dds_state_init.id_no;
+	dds->id_no = dds_init.id_no;
 	switch (dds->id_no)
 	{
 	case 0:
@@ -242,28 +242,31 @@ int32_t dac_init(dds_state **dds_st,
 		break;
 	}
 
-	dds->num_tx_channels = dds_state_init.num_tx_channels;
-	dds->dac_ddr_baseaddr = dds_state_init.dac_ddr_baseaddr;
+	dds->dac_ddr_baseaddr = dds_init.dac_ddr_baseaddr;
 
 	dac_write(dds, DAC_REG_RSTN, 0x0);
 	dac_write(dds, DAC_REG_RSTN, DAC_RSTN | DAC_MMCM_RSTN);
 
 	dds[dds->id_no].dac_clk = dac_clk;
-	dds[dds->id_no].rx2tx2 = dds_state_init.rx2tx2;
-
 	dac_read(dds, DAC_REG_CNTRL_2, &reg_ctrl_2);
-	if(dds[dds->id_no].rx2tx2 )
+
+	dds->num_tx_channels = dds_init.num_tx_channels;
+	switch (dds->num_tx_channels)
 	{
-		dds[dds->id_no].num_buf_channels = 4;
-		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(3));
-		reg_ctrl_2 &= ~DAC_R1_MODE;
-	}
-	else
-	{
+	case 1:
 		dds[dds->id_no].num_buf_channels = 2;
 		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(1));
 		reg_ctrl_2 |= DAC_R1_MODE;
+		break;
+	case 2:
+		dds[dds->id_no].num_buf_channels = 4;
+		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(3));
+		reg_ctrl_2 &= ~DAC_R1_MODE;
+		break;
+	default:
+		break;
 	}
+
 	dac_write(dds, DAC_REG_CNTRL_2, reg_ctrl_2);
 	dac_read(dds, DAC_REG_VERSION, &dds[dds->id_no].pcore_version);
 	dac_stop(dds);
@@ -274,7 +277,7 @@ int32_t dac_init(dds_state **dds_st,
 		dds_default_setup(dds, DDS_CHAN_TX1_Q_F1, 0, 1000000, 250000);
 		dds_default_setup(dds, DDS_CHAN_TX1_Q_F2, 0, 1000000, 250000);
 
-		if(dds[dds->id_no].rx2tx2)
+		if(dds->num_tx_channels == 2)
 		{
 			dds_default_setup(dds, DDS_CHAN_TX2_I_F1, 90000, 1000000, 250000);
 			dds_default_setup(dds, DDS_CHAN_TX2_I_F2, 90000, 1000000, 250000);
@@ -284,7 +287,7 @@ int32_t dac_init(dds_state **dds_st,
 	}
 
 	dac_datasel(dds, -1, data_sel);
-	dds[dds->id_no].enable = dds_state_init.enable;
+	dds[dds->id_no].enable = dds_init.enable;
 	dac_start_sync(dds, 0);
 
 	*dds_st = dds;

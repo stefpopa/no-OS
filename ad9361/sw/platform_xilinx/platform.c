@@ -360,7 +360,6 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 		break;
 	}
 	st->adc_st->start_address = axiadc_init.start_address;
-	st->adc_st->rx2tx2 = axiadc_init.rx2tx2;
 	st->adc_st->num_tx_channels = axiadc_init.num_tx_channels;
 
 	adc_write(st->adc_st, ADC_REG_RSTN, 0);
@@ -369,7 +368,7 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
 	adc_write(st->adc_st, ADC_REG_CHAN_CNTRL(1),
 		ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
-	if(st->adc_st->rx2tx2)
+	if(st->adc_st->num_tx_channels == 2)
 	{
 		adc_write(st->adc_st, ADC_REG_CHAN_CNTRL(2),
 			ADC_IQCOR_ENB | ADC_FORMAT_SIGNEXT | ADC_FORMAT_ENABLE | ADC_ENABLE);
@@ -383,7 +382,7 @@ int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init)
 	}
 
 	st->pcore_version = axiadc_read(st, ADI_REG_VERSION);
-	st->cnv->chip_info = &axiadc_chip_info_tbl[st->adc_st->rx2tx2 ? ID_AD9361 : ID_AD9364];
+	st->cnv->chip_info = &axiadc_chip_info_tbl[(st->adc_st->num_tx_channels == 2) ? ID_AD9361 : ID_AD9364];
 
 	*state = st;
 

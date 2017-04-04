@@ -96,7 +96,6 @@ struct spi_device {
 typedef struct
 {
 	uint8_t id_no;
-	bool rx2tx2;
 	uint32_t start_address;
 	uint32_t ad9361_rx_baseaddr;
 	uint8_t	 num_tx_channels;
@@ -121,7 +120,6 @@ struct axiadc_converter {
 
 typedef struct {
 	uint8_t 	id_no;
-	bool 		rx2tx2;
 	uint32_t 	start_address;
 	uint8_t		num_tx_channels;
 }axiadc_state_init;

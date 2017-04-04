@@ -358,27 +358,15 @@ AD9361_TXFIRConfig tx_fir_config = {	// BPF PASSBAND 3/20 fs to 1/4 fs
 	 0 // tx_bandwidth
 };
 
-dds_state dds_state_init_params = {
-		0,															// id_no
-		{1000000, 1000000, 1000000,	1000000,
-		 1000000, 1000000, 1000000, 1000000}, 						// cached_freq[8]
-		{90000, 90000, 0, 0, 90000, 90000, 0, 0}, 				  	// cached_phase[8]
-		{250000, 250000, 250000, 250000,
-		 250000, 250000, 250000, 250000}, 						  	// cached_scale[8]
-		{DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS,
-		 DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS, DATA_SEL_DDS}, 	// cached_datasel[8]
-		 NULL, 														// *dac_clk
-		 0,															// pcore_version
-		 4,															// num_buf_channels
+dds_state_init dds_state_init_params = {
+		 0,															// id_no
 		 2,															// num_tx_channels
 		 true, 														// enable
-		 1,															// rx2tx2
 		 XPAR_DDR_MEM_BASEADDR + 0xA000000							// dac_ddr_baseaddr
 };
 
 axiadc_state_init axiadc_state_init_params = {
 		 0,															// id_no
-		 1,															// rx2tx2
 		 XPAR_DDR_MEM_BASEADDR + 0x800000,							// adc_ddr_baseaddr
 		 2															// num_tx_channels
 };

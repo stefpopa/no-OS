@@ -157,10 +157,17 @@ typedef struct
 	uint32_t				num_buf_channels;
 	uint8_t					num_tx_channels;
 	bool					enable;
-	bool					rx2tx2;
 	uint32_t				dac_ddr_baseaddr;
 	uint32_t				ad9361_tx_baseaddr;
 } dds_state;
+
+typedef struct
+{
+	uint8_t					id_no;
+	uint8_t					num_tx_channels;
+	bool					enable;
+	uint32_t				dac_ddr_baseaddr;
+} dds_state_init;
 
 #define DAC_REG_CHAN_CNTRL_6(c)		(0x0414 + (c) * 0x40)
 #define DAC_IQCOR_ENB				(1 << 2) /* v8.0 */
@@ -184,7 +191,7 @@ void dac_write_custom_data(dds_state *dds_st,
 int32_t dac_init(dds_state **dds,
 				 enum dds_data_select data_sel,
 				 uint32_t *dac_clk,
-				 dds_state dds_state_init);
+				 dds_state_init dds_init);
 void dds_set_frequency(dds_state *dds, uint32_t chan, uint32_t freq);
 void dds_get_frequency(dds_state *dds, uint32_t chan, uint32_t *freq);
 void dds_set_phase(dds_state *dds, uint32_t chan, uint32_t phase);
