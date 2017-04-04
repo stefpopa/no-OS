@@ -48,6 +48,9 @@
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
+#define ADI_REG_VERSION			0x0000
+#define ADI_REG_ID				0x0004
+
 /* ADC COMMON */
 #define ADC_REG_RSTN			0x0040
 #define ADC_RSTN				(1 << 0)
@@ -63,6 +66,14 @@
 #define ADC_MUX_PN_OOS			(1 << 2)
 #define ADC_MUX_OVER_RANGE		(1 << 1)
 #define ADC_STATUS				(1 << 0)
+
+#define ADC_REG_DELAY_CNTRL		0x0060	/* <= v8.0 */
+#define ADC_DELAY_SEL			(1 << 17)
+#define ADC_DELAY_RWN			(1 << 16)
+#define ADC_DELAY_ADDRESS(x)	(((x) & 0xFF) << 8)
+#define ADC_TO_DELAY_ADDRESS(x)	(((x) >> 8) & 0xFF)
+#define ADC_DELAY_WDATA(x)		(((x) & 0x1F) << 0)
+#define ADC_TO_DELAY_WDATA(x)	(((x) >> 0) & 0x1F)
 
 #define ADC_REG_DMA_CNTRL		0x0080
 #define ADC_DMA_STREAM			(1 << 1)
@@ -116,6 +127,9 @@
 #define ADC_ADC_DATA_SEL(x)			(((x) & 0xF) << 0)
 #define ADC_TO_ADC_DATA_SEL(x)		(((x) >> 0) & 0xF)
 
+/* PCORE Version > 8.00 */
+#define ADC_REG_DELAY(l)				(0x0800 + (l) * 0x4)
+
 #define AXI_DMAC_REG_IRQ_MASK			0x80
 #define AXI_DMAC_REG_IRQ_PENDING		0x84
 #define AXI_DMAC_REG_IRQ_SOURCE			0x88
@@ -144,6 +158,30 @@
 #define AXI_DMAC_IRQ_SOT				(1 << 0)
 #define AXI_DMAC_IRQ_EOT				(1 << 1)
 
+#define PCORE_VERSION(major, minor, letter) ((major << 16) | (minor << 8) | letter)
+#define PCORE_VERSION_MAJOR(version) (version >> 16)
+#define PCORE_VERSION_MINOR(version) ((version >> 8) & 0xff)
+#define PCORE_VERSION_LETTER(version) (version & 0xff)
+
+enum adc_pn_sel {
+	ADC_PN9 = 0,
+	ADC_PN23A = 1,
+	ADC_PN7 = 4,
+	ADC_PN15 = 5,
+	ADC_PN23 = 6,
+	ADC_PN31 = 7,
+	ADC_PN_CUSTOM = 9,
+	ADC_PN_END = 10,
+};
+
+enum adc_data_sel {
+	ADC_DATA_SEL_NORM,
+	ADC_DATA_SEL_LB, /* DAC loopback */
+	ADC_DATA_SEL_RAMP, /* TBD */
+};
+
+extern struct axiadc_chip_info axiadc_chip_info_tbl[];
+
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
@@ -166,4 +204,12 @@ int32_t adc_get_calib_phase(adc_state *adc_st,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2);
+int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init);
+int axiadc_post_setup(struct ad9361_rf_phy *phy);
+int32_t axiadc_ad9361_alloc(struct ad9361_rf_phy *phy, struct axiadc_state *st);
+void axiadc_ad9361_dealloc(struct ad9361_rf_phy *phy);
+unsigned int axiadc_read(struct axiadc_state *st, unsigned long reg);
+void axiadc_write(struct axiadc_state *st, unsigned reg, unsigned val);
+int axiadc_set_pnsel(struct axiadc_state *st, int channel, enum adc_pn_sel sel);
+void axiadc_idelay_set(struct axiadc_state *st, unsigned lane, unsigned val);
 #endif

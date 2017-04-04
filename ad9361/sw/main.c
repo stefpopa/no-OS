@@ -371,6 +371,20 @@ axiadc_state_init axiadc_state_init_params = {
 		 2															// num_tx_channels
 };
 
+struct axiadc_chip_info axiadc_chip_info_tbl[] =
+{
+	{
+ 		"AD9361",
+ 		4,
+ 		61440000UL,
+ 	},
+ 	{
+ 		"AD9364",
+ 		2,
+		61440000UL,
+ 	}
+ };
+
 struct ad9361_rf_phy *ad9361_phy;
 struct ad9361_rf_phy *ad9361_phy_b;
 dds_state *dds;
