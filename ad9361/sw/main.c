@@ -449,10 +449,10 @@ int main(void)
 	ad9361_init(&ad9361_phy, &default_init_param);
 
 	if (!AXI_ADC_NOT_PRESENT) {
-		axiadc_ad9361_alloc(ad9361_phy, axiadc_st);
+		axiadc_state_alloc(ad9361_phy, axiadc_st);
 		/* platform specific wrapper to call ad9361_post_setup() */
 		axiadc_post_setup(ad9361_phy);
-		axiadc_ad9361_dealloc(ad9361_phy);
+		axiadc_state_dealloc(ad9361_phy);
 	}
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);

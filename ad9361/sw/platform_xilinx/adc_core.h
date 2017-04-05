@@ -206,8 +206,8 @@ int32_t adc_get_calib_phase(adc_state *adc_st,
 							int32_t *val2);
 int32_t axiadc_init(struct axiadc_state **state, axiadc_state_init axiadc_init);
 int axiadc_post_setup(struct ad9361_rf_phy *phy);
-int32_t axiadc_ad9361_alloc(struct ad9361_rf_phy *phy, struct axiadc_state *st);
-void axiadc_ad9361_dealloc(struct ad9361_rf_phy *phy);
+int32_t axiadc_state_alloc(struct ad9361_rf_phy *phy, struct axiadc_state *st);
+void axiadc_state_dealloc(struct ad9361_rf_phy *phy);
 unsigned int axiadc_read(struct axiadc_state *st, unsigned long reg);
 void axiadc_write(struct axiadc_state *st, unsigned reg, unsigned val);
 int axiadc_set_pnsel(struct axiadc_state *st, int channel, enum adc_pn_sel sel);
