@@ -553,6 +553,7 @@ int32_t ad9361_post_setup(struct ad9361_rf_phy *phy)
 
 	return ret;
 }
+
 #else
 /**
  * HDL loopback enable/disable.
