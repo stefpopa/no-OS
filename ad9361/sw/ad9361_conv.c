@@ -45,6 +45,8 @@
 #include "ad9361.h"
 #include "platform.h"
 #include "config.h"
+
+#ifndef AXI_CORE_NOT_PRESENT
 #include "adc_core.h"
 
 /**
@@ -55,9 +57,6 @@
  */
 int32_t ad9361_hdl_loopback(struct ad9361_rf_phy *phy, bool enable)
 {
-	if (AXI_ADC_NOT_PRESENT)
-		return -ENODEV;
-
 	struct axiadc_converter *conv = phy->adc_conv;
 	struct axiadc_state *st = phy->adc_state;
 	int32_t reg, addr, chan;
@@ -282,9 +281,6 @@ int32_t ad9361_dig_interface_timing_analysis(struct ad9361_rf_phy *phy,
 int32_t ad9361_dig_tune(struct ad9361_rf_phy *phy, uint32_t max_freq,
 						enum dig_tune_flags flags)
 {
-	if (AXI_ADC_NOT_PRESENT)
-		return 0;
-
 	struct axiadc_converter *conv = phy->adc_conv;
 	struct axiadc_state *st = phy->adc_state;
 	int32_t ret, i, j, k, chan, t, num_chan, err = 0;
@@ -497,9 +493,6 @@ int32_t ad9361_dig_tune(struct ad9361_rf_phy *phy, uint32_t max_freq,
 */
 int32_t ad9361_post_setup(struct ad9361_rf_phy *phy)
 {
-	if (AXI_ADC_NOT_PRESENT)
-		return 0;
-
 	struct axiadc_converter *conv = phy->adc_conv;
 	struct axiadc_state *st = phy->adc_state;
 	int32_t rx2tx2 = phy->pdata->rx2tx2;
@@ -560,3 +553,38 @@ int32_t ad9361_post_setup(struct ad9361_rf_phy *phy)
 
 	return ret;
 }
+#else
+/**
+ * HDL loopback enable/disable.
+ * @param phy The AD9361 state structure.
+ * @param enable Enable/disable option.
+ * @return 0 in case of success, negative error code otherwise.
+ */
+int32_t ad9361_hdl_loopback(struct ad9361_rf_phy *phy, bool enable)
+{
+	return -ENODEV;
+}
+
+/**
+ * Digital tune.
+ * @param phy The AD9361 state structure.
+ * @param max_freq Maximum frequency.
+ * @param flags Flags: BE_VERBOSE, BE_MOREVERBOSE, DO_IDELAY, DO_ODELAY.
+ * @return 0 in case of success, negative error code otherwise.
+ */
+int32_t ad9361_dig_tune(struct ad9361_rf_phy *phy, uint32_t max_freq,
+						enum dig_tune_flags flags)
+{
+	return 0;
+}
+
+/**
+* Setup the AD9361 device.
+* @param phy The AD9361 state structure.
+* @return 0 in case of success, negative error code otherwise.
+*/
+int32_t ad9361_post_setup(struct ad9361_rf_phy *phy)
+{
+	return 0;
+}
+#endif

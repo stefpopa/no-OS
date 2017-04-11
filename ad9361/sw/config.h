@@ -56,9 +56,10 @@
 //#define CONSOLE_COMMANDS
 //#define XILINX_PLATFORM
 //#define ALTERA_PLATFORM
-//#define FMCOMMS5
-//#define PICOZED_SDR
-//#define PICOZED_SDR_CMOS
+#define FMCOMMS5				0
+#define PICOZED_SDR				0
+#define PICOZED_SDR_CMOS		0
+#define DAC_DMA					0
 //#define CAPTURE_SCRIPT
 //#define AXI_ADC_NOT_PRESENT
 
