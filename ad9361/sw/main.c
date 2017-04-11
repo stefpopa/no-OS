@@ -51,9 +51,12 @@
 #ifdef XILINX_PLATFORM
 #include <xil_cache.h>
 #endif
-#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
+
+#if defined XILINX_PLATFORM || defined LINUX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
 #include "adc_core.h"
 #include "dac_core.h"
+#endif
 #endif
 
 /******************************************************************************/
@@ -358,9 +361,10 @@ AD9361_TXFIRConfig tx_fir_config = {	// BPF PASSBAND 3/20 fs to 1/4 fs
 	 0 // tx_bandwidth
 };
 
+#if defined XILINX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
 dds_state_init dds_state_init_params = {
 		 0,															// id_no
-		 2,															// num_tx_channels
 		 true, 														// enable
 		 XPAR_DDR_MEM_BASEADDR + 0xA000000							// dac_ddr_baseaddr
 };
@@ -368,7 +372,6 @@ dds_state_init dds_state_init_params = {
 axiadc_state_init axiadc_state_init_params = {
 		 0,															// id_no
 		 XPAR_DDR_MEM_BASEADDR + 0x800000,							// adc_ddr_baseaddr
-		 2															// num_tx_channels
 };
 
 struct axiadc_chip_info axiadc_chip_info_tbl[] =
@@ -384,11 +387,14 @@ struct axiadc_chip_info axiadc_chip_info_tbl[] =
 		61440000UL,
  	}
  };
+#endif
+#endif
 
 struct ad9361_rf_phy *ad9361_phy;
 struct ad9361_rf_phy *ad9361_phy_b;
-dds_state *dds;
+struct dds_state *dds;
 struct axiadc_state *axiadc_st;
+
 /***************************************************************************//**
  * @brief main
 *******************************************************************************/
@@ -409,15 +415,14 @@ int main(void)
 	// NOTE: The user has to choose the GPIO numbers according to desired
 	// carrier board.
 	default_init_param.gpio_resetb = GPIO_RESET_PIN;
-	if (FMCOMMS5)
-	{
+	if (FMCOMMS5) {
+#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
 		default_init_param.gpio_sync = GPIO_SYNC_PIN;
 		default_init_param.gpio_cal_sw1 = GPIO_CAL_SW1_PIN;
 		default_init_param.gpio_cal_sw2 = GPIO_CAL_SW2_PIN;
 		default_init_param.rx1rx2_phase_inversion_en = 1;
-	}
-	else
-	{
+#endif
+	} else {
 		default_init_param.gpio_sync = -1;
 		default_init_param.gpio_cal_sw1 = -1;
 		default_init_param.gpio_cal_sw2 = -1;
@@ -443,70 +448,94 @@ int main(void)
 		default_init_param.digital_interface_tune_fir_disable = 1;
 	}
 
-	if (!AXI_ADC_NOT_PRESENT)
-		axiadc_init(&axiadc_st, axiadc_state_init_params);
-
+#if defined XILINX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
+	axiadc_init(&axiadc_st, axiadc_state_init_params);
+#endif
+#endif
 	ad9361_init(&ad9361_phy, &default_init_param);
 
-	if (!AXI_ADC_NOT_PRESENT) {
-		axiadc_state_alloc(ad9361_phy, axiadc_st);
-		/* platform specific wrapper to call ad9361_post_setup() */
-		axiadc_post_setup(ad9361_phy);
-		axiadc_state_dealloc(ad9361_phy);
-	}
+#if defined XILINX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
+	axiadc_state_alloc(ad9361_phy, axiadc_st);
+	/* platform specific wrapper to call ad9361_post_setup() */
+	axiadc_post_setup(ad9361_phy);
+	axiadc_state_dealloc(ad9361_phy);
+#endif
+#endif
+
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
 
-	if(FMCOMMS5)
-	{
-	#ifdef LINUX_PLATFORM
+	if(FMCOMMS5) {
+#ifdef LINUX_PLATFORM
 		gpio_init(default_init_param.gpio_sync);
-	#endif
+#endif
 		gpio_direction(default_init_param.gpio_sync, 1);
 		default_init_param.id_no = 1;
+#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
 		default_init_param.gpio_resetb = GPIO_RESET_PIN_2;
-	#ifdef LINUX_PLATFORM
+#endif
+#ifdef LINUX_PLATFORM
 		gpio_init(default_init_param.gpio_resetb);
-	#endif
+#endif
 		default_init_param.gpio_sync = -1;
 		default_init_param.gpio_cal_sw1 = -1;
 		default_init_param.gpio_cal_sw2 = -1;
 		default_init_param.rx_synthesizer_frequency_hz = 2300000000UL;
 		default_init_param.tx_synthesizer_frequency_hz = 2300000000UL;
 		gpio_direction(default_init_param.gpio_resetb, 1);
+
+#if defined XILINX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
+		axiadc_state_init_params.id_no = 1;
+		axiadc_init(&axiadc_st, axiadc_state_init_params);
+#endif
+#endif
+
 		ad9361_init(&ad9361_phy_b, &default_init_param);
 
+#if defined XILINX_PLATFORM || defined ALTERA_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
+		axiadc_state_alloc(ad9361_phy_b, axiadc_st);
+		/* platform specific wrapper to call ad9361_post_setup() */
+		axiadc_post_setup(ad9361_phy_b);
+		axiadc_state_dealloc(ad9361_phy_b);
+#endif
+#endif
 		ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
 		ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
 	}
 
-	if (!AXI_ADC_NOT_PRESENT) {
-		#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
+#ifndef AXI_CORE_NOT_PRESENT
+#if defined XILINX_PLATFORM || defined LINUX_PLATFORM
 		enum dds_data_select sel;
+		extern const uint32_t sine_lut_iq[128];
 
 		sel = ((DAC_DMA) ? DATA_SEL_DMA : DATA_SEL_DDS);
 
-		if (!FMCOMMS5) {
-			dac_init(&dds,
-					 sel,
-					 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
-					 dds_state_init_params);
-			extern const uint32_t sine_lut_iq[128];
-			dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
-		}
-		else {
+		if (FMCOMMS5) {
+			dds_state_init_params.id_no = 1;
 			dac_init(&dds,
 					 sel,
 					 &ad9361_phy_b->clks[TX_SAMPL_CLK]->rate,
 					 dds_state_init_params);
 		}
-		#endif
-	}
+		dds_state_init_params.id_no = 0;
+		dac_init(&dds,
+				 sel,
+				 &ad9361_phy->clks[TX_SAMPL_CLK]->rate,
+				 dds_state_init_params);
+
+		dac_write_custom_data(dds, sine_lut_iq, sizeof(sine_lut_iq) / sizeof(uint32_t));
+#endif
+#endif
+
 	if(FMCOMMS5)
 		ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
 
-	if (!AXI_ADC_NOT_PRESENT) {
-		#if defined XILINX_PLATFORM && defined CAPTURE_SCRIPT
+#ifndef AXI_CORE_NOT_PRESENT
+#if defined XILINX_PLATFORM && defined CAPTURE_SCRIPT
 		// NOTE: To prevent unwanted data loss, it's recommended to invalidate
 		// cache after each adc_capture() call, keeping in mind that the
 		// size of the capture and the start address must be alinged to the size
@@ -514,8 +543,8 @@ int main(void)
 		mdelay(1000);
 		adc_capture(axiadc_st->adc_st, 16384);
 		Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384);
-		#endif
-	}
+#endif
+#endif
 
 #ifdef CONSOLE_COMMANDS
 	get_help(NULL, 0);

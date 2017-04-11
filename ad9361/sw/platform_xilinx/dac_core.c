@@ -109,7 +109,7 @@ const uint32_t sine_lut_iq[128] = {
 /***************************************************************************//**
  * @brief dac_read
 *******************************************************************************/
-void dac_read(dds_state *dds, uint32_t regAddr, uint32_t *data)
+void dac_read(struct dds_state *dds, uint32_t regAddr, uint32_t *data)
 {
 	*data = Xil_In32(dds->ad9361_tx_baseaddr + regAddr);
 }
@@ -117,7 +117,7 @@ void dac_read(dds_state *dds, uint32_t regAddr, uint32_t *data)
 /***************************************************************************//**
  * @brief dac_write
 *******************************************************************************/
-void dac_write(dds_state *dds, uint32_t regAddr, uint32_t data)
+void dac_write(struct dds_state *dds, uint32_t regAddr, uint32_t data)
 {
 	Xil_Out32(dds->ad9361_tx_baseaddr + regAddr, data);
 }
@@ -141,7 +141,7 @@ void dac_dma_write(uint32_t regAddr, uint32_t data)
 /***************************************************************************//**
  * @brief dds_default_setup
 *******************************************************************************/
-int32_t dds_default_setup(dds_state *dds,
+int32_t dds_default_setup(struct dds_state *dds,
 						  uint32_t chan, uint32_t phase,
 						  uint32_t freq, int32_t scale)
 {
@@ -158,7 +158,7 @@ int32_t dds_default_setup(dds_state *dds,
 /***************************************************************************//**
  * @brief dac_stop
 *******************************************************************************/
-void dac_stop(dds_state *dds)
+void dac_stop(struct dds_state *dds)
 {
 	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8)
 	{
@@ -169,7 +169,7 @@ void dac_stop(dds_state *dds)
 /***************************************************************************//**
  * @brief dac_start_sync
 *******************************************************************************/
-void dac_start_sync(dds_state *dds, bool force_on)
+void dac_start_sync(struct dds_state *dds, bool force_on)
 {
 	if (PCORE_VERSION_MAJOR(dds[dds->id_no].pcore_version) < 8)
 	{
@@ -184,7 +184,7 @@ void dac_start_sync(dds_state *dds, bool force_on)
 /***************************************************************************//**
  * @brief dac_write_custom_data
 *******************************************************************************/
-void dac_write_custom_data(dds_state *dds,
+void dac_write_custom_data(struct dds_state *dds,
 					  	   const uint32_t *custom_data_iq,
 						   uint32_t custom_tx_count)
 {
@@ -197,11 +197,11 @@ void dac_write_custom_data(dds_state *dds,
 	{
 		for (chan = 0; chan < dds->num_tx_channels; chan++)
 		{
-			Xil_Out32(dds->dac_ddr_baseaddr + index_mem * 4, custom_data_iq[index]);
+			Xil_Out32(dds->dac_ddr_baseaddr + index_mem * sizeof(uint32_t), custom_data_iq[index]);
 			index_mem++;
 		}
 	}
-	Xil_DCacheFlushRange(dds->dac_ddr_baseaddr, index_mem * 4);
+	Xil_DCacheFlushRange(dds->dac_ddr_baseaddr, index_mem * sizeof(uint32_t));
 
 	length = index_mem * 4;
 
@@ -217,15 +217,15 @@ void dac_write_custom_data(dds_state *dds,
 /***************************************************************************//**
  * @brief dac_init
 *******************************************************************************/
-int32_t dac_init(dds_state **dds_st,
+int32_t dac_init(struct dds_state **dds_st,
 				 enum dds_data_select data_sel,
 				 uint32_t *dac_clk,
 				 dds_state_init dds_init)
 {
-	dds_state *dds;
+	struct dds_state *dds;
 	uint32_t reg_ctrl_2;
 
-	dds = (dds_state *)malloc(sizeof(*dds));
+	dds = (struct dds_state *)malloc(sizeof(*dds));
 	if (!dds)
 		return -1;
 
@@ -250,21 +250,25 @@ int32_t dac_init(dds_state **dds_st,
 	dds[dds->id_no].dac_clk = dac_clk;
 	dac_read(dds, DAC_REG_CNTRL_2, &reg_ctrl_2);
 
-	dds->num_tx_channels = dds_init.num_tx_channels;
-	switch (dds->num_tx_channels)
-	{
-	case 1:
-		dds[dds->id_no].num_buf_channels = 2;
-		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(1));
-		reg_ctrl_2 |= DAC_R1_MODE;
-		break;
-	case 2:
+	if (AD9364_DEVICE) {
+		dds->num_tx_channels = 1;
+	}
+	else {
+		if (FMCOMMS5)
+			dds->num_tx_channels = 4;
+		else
+			dds->num_tx_channels = 2;
+	}
+
+	if(dds->num_tx_channels > 1) {
 		dds[dds->id_no].num_buf_channels = 4;
 		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(3));
 		reg_ctrl_2 &= ~DAC_R1_MODE;
-		break;
-	default:
-		break;
+	}
+	else {
+		dds[dds->id_no].num_buf_channels = 2;
+		dac_write(dds, DAC_REG_RATECNTRL, DAC_RATE(1));
+		reg_ctrl_2 |= DAC_R1_MODE;
 	}
 
 	dac_write(dds, DAC_REG_CNTRL_2, reg_ctrl_2);
@@ -277,7 +281,7 @@ int32_t dac_init(dds_state **dds_st,
 		dds_default_setup(dds, DDS_CHAN_TX1_Q_F1, 0, 1000000, 250000);
 		dds_default_setup(dds, DDS_CHAN_TX1_Q_F2, 0, 1000000, 250000);
 
-		if(dds->num_tx_channels == 2)
+		if(dds->num_tx_channels > 1)
 		{
 			dds_default_setup(dds, DDS_CHAN_TX2_I_F1, 90000, 1000000, 250000);
 			dds_default_setup(dds, DDS_CHAN_TX2_I_F2, 90000, 1000000, 250000);
@@ -298,7 +302,7 @@ int32_t dac_init(dds_state **dds_st,
 /***************************************************************************//**
  * @brief dds_set_frequency
 *******************************************************************************/
-void dds_set_frequency(dds_state *dds, uint32_t chan, uint32_t freq)
+void dds_set_frequency(struct dds_state *dds, uint32_t chan, uint32_t freq)
 {
 	uint64_t val64;
 	uint32_t reg;
@@ -317,7 +321,7 @@ void dds_set_frequency(dds_state *dds, uint32_t chan, uint32_t freq)
 /***************************************************************************//**
  * @brief dds_get_frequency
 *******************************************************************************/
-void dds_get_frequency(dds_state *dds, uint32_t chan, uint32_t *freq)
+void dds_get_frequency(struct dds_state *dds, uint32_t chan, uint32_t *freq)
 {
 	*freq = dds[dds->id_no].cached_freq[chan];
 }
@@ -325,7 +329,7 @@ void dds_get_frequency(dds_state *dds, uint32_t chan, uint32_t *freq)
 /***************************************************************************//**
  * @brief dds_set_phase
 *******************************************************************************/
-void dds_set_phase(dds_state *dds, uint32_t chan, uint32_t phase)
+void dds_set_phase(struct dds_state *dds, uint32_t chan, uint32_t phase)
 {
 	uint64_t val64;
 	uint32_t reg;
@@ -344,7 +348,7 @@ void dds_set_phase(dds_state *dds, uint32_t chan, uint32_t phase)
 /***************************************************************************//**
  * @brief dds_get_phase
 *******************************************************************************/
-void dds_get_phase(dds_state *dds, uint32_t chan, uint32_t *phase)
+void dds_get_phase(struct dds_state *dds, uint32_t chan, uint32_t *phase)
 {
 	*phase = dds[dds->id_no].cached_phase[chan];
 }
@@ -352,7 +356,7 @@ void dds_get_phase(dds_state *dds, uint32_t chan, uint32_t *phase)
 /***************************************************************************//**
  * @brief dds_set_phase
 *******************************************************************************/
-void dds_set_scale(dds_state *dds, uint32_t chan, int32_t scale_micro_units)
+void dds_set_scale(struct dds_state *dds, uint32_t chan, int32_t scale_micro_units)
 {
 	uint32_t scale_reg;
 	uint32_t sign_part;
@@ -417,7 +421,7 @@ void dds_set_scale(dds_state *dds, uint32_t chan, int32_t scale_micro_units)
 /***************************************************************************//**
  * @brief dds_get_phase
 *******************************************************************************/
-void dds_get_scale(dds_state *dds, uint32_t chan, int32_t *scale_micro_units)
+void dds_get_scale(struct dds_state *dds, uint32_t chan, int32_t *scale_micro_units)
 {
 	*scale_micro_units = dds[dds->id_no].cached_scale[chan];
 }
@@ -425,7 +429,7 @@ void dds_get_scale(dds_state *dds, uint32_t chan, int32_t *scale_micro_units)
 /***************************************************************************//**
  * @brief dds_update
 *******************************************************************************/
-void dds_update(dds_state *dds)
+void dds_update(struct dds_state *dds)
 {
 	uint32_t chan;
 
@@ -440,7 +444,7 @@ void dds_update(dds_state *dds)
 /***************************************************************************//**
  * @brief dac_datasel
 *******************************************************************************/
-int32_t dac_datasel(dds_state *dds, int32_t chan, enum dds_data_select sel)
+int32_t dac_datasel(struct dds_state *dds, int32_t chan, enum dds_data_select sel)
 {
 	int32_t i;
 
@@ -480,7 +484,7 @@ int32_t dac_datasel(dds_state *dds, int32_t chan, enum dds_data_select sel)
 /***************************************************************************//**
  * @brief dac_get_datasel
 *******************************************************************************/
-void dac_get_datasel(dds_state *dds, int32_t chan, enum dds_data_select *sel)
+void dac_get_datasel(struct dds_state *dds, int32_t chan, enum dds_data_select *sel)
 {
 	*sel = dds[dds->id_no].cached_datasel[chan];
 }
@@ -554,7 +558,7 @@ void dds_from_signed_mag_fmt(uint32_t val,
 /***************************************************************************//**
  * @brief dds_set_calib_scale_phase
 *******************************************************************************/
-int32_t dds_set_calib_scale_phase(dds_state *dds,
+int32_t dds_set_calib_scale_phase(struct dds_state *dds,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t val,
@@ -587,7 +591,7 @@ int32_t dds_set_calib_scale_phase(dds_state *dds,
 /***************************************************************************//**
  * @brief dds_get_calib_scale_phase
 *******************************************************************************/
-int32_t dds_get_calib_scale_phase(dds_state *dds,
+int32_t dds_get_calib_scale_phase(struct dds_state *dds,
 								  uint32_t phase,
 								  uint32_t chan,
 								  int32_t *val,
@@ -617,7 +621,7 @@ int32_t dds_get_calib_scale_phase(dds_state *dds,
 /***************************************************************************//**
  * @brief dds_set_calib_scale
 *******************************************************************************/
-int32_t dds_set_calib_scale(dds_state *dds,
+int32_t dds_set_calib_scale(struct dds_state *dds,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
@@ -628,7 +632,7 @@ int32_t dds_set_calib_scale(dds_state *dds,
 /***************************************************************************//**
  * @brief dds_get_calib_scale
 *******************************************************************************/
-int32_t dds_get_calib_scale(dds_state *dds,
+int32_t dds_get_calib_scale(struct dds_state *dds,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)
@@ -639,7 +643,7 @@ int32_t dds_get_calib_scale(dds_state *dds,
 /***************************************************************************//**
  * @brief dds_set_calib_phase
 *******************************************************************************/
-int32_t dds_set_calib_phase(dds_state *dds,
+int32_t dds_set_calib_phase(struct dds_state *dds,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2)
@@ -650,7 +654,7 @@ int32_t dds_set_calib_phase(dds_state *dds,
 /***************************************************************************//**
  * @brief dds_get_calib_phase
 *******************************************************************************/
-int32_t dds_get_calib_phase(dds_state *dds,
+int32_t dds_get_calib_phase(struct dds_state *dds,
 							uint32_t chan,
 							int32_t *val,
 							int32_t *val2)

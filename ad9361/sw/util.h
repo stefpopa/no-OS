@@ -121,7 +121,6 @@ struct axiadc_converter {
 typedef struct {
 	uint8_t 	id_no;
 	uint32_t 	start_address;
-	uint8_t		num_tx_channels;
 }axiadc_state_init;
 
 
