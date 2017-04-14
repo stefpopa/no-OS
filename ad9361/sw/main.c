@@ -77,8 +77,10 @@ char				received_cmd[30] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #endif
 
 AD9361_InitParam default_init_param = {
+	/* Device selection */
+	ID_AD9361,	// dev_sel
 	/* Identification number */
-	0,		//id_no;
+	0,		//id_no
 	/* Reference Clock */
 	40000000UL,	//reference_clk_rate
 	/* Base Configuration */
@@ -111,7 +113,7 @@ AD9361_InitParam default_init_param = {
 	2400000000UL,	//tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
 	/* Rate & BW Control */
 	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},//uint32_t	rx_path_clock_frequencies[6] *** adi,rx-path-clock-frequencies
-	{983040000, 122880000, 122880000, 61440000, 30720000, 30720000},//uint32_t	tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
+	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},//uint32_t	tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
 	18000000,//rf_rx_bandwidth_hz *** adi,rf-rx-bandwidth-hz
 	18000000,//rf_tx_bandwidth_hz *** adi,rf-tx-bandwidth-hz
 	/* RF Port Control */
@@ -377,16 +379,14 @@ axiadc_state_init axiadc_state_init_params = {
 struct axiadc_chip_info axiadc_chip_info_tbl[] =
 {
 	{
- 		"AD9361",
- 		4,
- 		61440000UL,
- 	},
- 	{
- 		"AD9364",
- 		2,
-		61440000UL,
- 	}
- };
+		"4_CH_DEV",
+		4
+	},
+	{
+		"2_CH_DEV",
+		2
+	},
+};
 #endif
 #endif
 
@@ -436,6 +436,11 @@ int main(void)
 	gpio_direction(default_init_param.gpio_resetb, 1);
 
 	spi_init(SPI_DEVICE_ID, 1, 0);
+
+	if (AD9364_DEVICE)
+		default_init_param.dev_sel = ID_AD9364;
+	if (AD9363A_DEVICE)
+		default_init_param.dev_sel = ID_AD9363A;
 
 	if(FMCOMMS5 || PICOZED_SDR || PICOZED_SDR_CMOS)
 		default_init_param.xo_disable_use_ext_refclk_enable = 1;
@@ -575,6 +580,123 @@ int main(void)
 #endif
 
 	printf("Done.\n");
+
+#ifdef TDD_SWITCH_STATE_EXAMPLE
+	uint32_t ensm_mode;
+	if (!ad9361_phy->pdata->fdd) {
+		if (ad9361_phy->pdata->ensm_pin_ctrl) {
+			gpio_direction(GPIO_ENABLE_PIN, 1);
+			gpio_direction(GPIO_TXNRX_PIN, 1);
+			gpio_set_value(GPIO_ENABLE_PIN, 0);
+			gpio_set_value(GPIO_TXNRX_PIN, 0);
+			udelay(10);
+			ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+			printf("TXNRX control - Alert: %s\n",
+					ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+			mdelay(1000);
+
+			if (ad9361_phy->pdata->ensm_pin_pulse_mode) {
+				while(1) {
+					gpio_set_value(GPIO_TXNRX_PIN, 0);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX Pulse control - RX: %s\n",
+							ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX Pulse control - Alert: %s\n",
+							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_TXNRX_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX Pulse control - TX: %s\n",
+							ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX Pulse control - Alert: %s\n",
+							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+					mdelay(1000);
+				}
+			} else {
+				while(1) {
+					gpio_set_value(GPIO_TXNRX_PIN, 0);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX control - RX: %s\n",
+							ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					udelay(10);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX control - Alert: %s\n",
+							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_TXNRX_PIN, 1);
+					udelay(10);
+					gpio_set_value(GPIO_ENABLE_PIN, 1);
+					udelay(10);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX control - TX: %s\n",
+							ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
+					mdelay(1000);
+
+					gpio_set_value(GPIO_ENABLE_PIN, 0);
+					udelay(10);
+					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+					printf("TXNRX control - Alert: %s\n",
+							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+					mdelay(1000);
+				}
+			}
+		} else {
+			while(1) {
+				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_RX);
+				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+				printf("SPI control - RX: %s\n",
+						ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
+				mdelay(1000);
+
+				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_ALERT);
+				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+				printf("SPI control - Alert: %s\n",
+						ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+				mdelay(1000);
+
+				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_TX);
+				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+				printf("SPI control - TX: %s\n",
+						ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
+				mdelay(1000);
+
+				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_ALERT);
+				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
+				printf("SPI control - Alert: %s\n",
+						ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
+				mdelay(1000);
+			}
+		}
+	}
+#endif
 
 #ifdef XILINX_PLATFORM
 	Xil_DCacheDisable();

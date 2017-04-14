@@ -86,9 +86,11 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy, AD9361_InitParam *init_p
 		return -ENOMEM;
 	}
 
-	phy->spi->id_no = init_param->id_no;
+	/* Device selection */
+	phy->dev_sel = init_param->dev_sel;
 
 	/* Identification number */
+	phy->spi->id_no = init_param->id_no;
 	phy->id_no = init_param->id_no;
 
 	/* Reference Clock */
@@ -106,8 +108,13 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy, AD9361_InitParam *init_p
 	phy->pdata->tx_fastlock_delay_ns = init_param->tx_fastlock_delay_ns;
 	phy->pdata->trx_fastlock_pinctrl_en[0] = init_param->rx_fastlock_pincontrol_enable;
 	phy->pdata->trx_fastlock_pinctrl_en[1] = init_param->tx_fastlock_pincontrol_enable;
-	phy->pdata->use_ext_rx_lo = init_param->external_rx_lo_enable;
-	phy->pdata->use_ext_tx_lo = init_param->external_tx_lo_enable;
+	if (phy->dev_sel == ID_AD9363A) {
+		phy->pdata->use_ext_rx_lo = false;
+		phy->pdata->use_ext_tx_lo = false;
+	} else {
+		phy->pdata->use_ext_rx_lo = init_param->external_rx_lo_enable;
+		phy->pdata->use_ext_tx_lo = init_param->external_tx_lo_enable;
+	}
 	phy->pdata->dc_offset_update_events = init_param->dc_offset_tracking_update_event_mask;
 	phy->pdata->dc_offset_attenuation_high = init_param->dc_offset_attenuation_high_range;
 	phy->pdata->dc_offset_attenuation_low = init_param->dc_offset_attenuation_low_range;
@@ -144,7 +151,13 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy, AD9361_InitParam *init_p
 	phy->pdata->update_tx_gain_via_alert = init_param->update_tx_gain_in_alert_enable;
 
 	/* Reference Clock Control */
-	phy->pdata->use_extclk = init_param->xo_disable_use_ext_refclk_enable;
+	switch (phy->dev_sel) {
+		case ID_AD9363A:
+			phy->pdata->use_extclk = true;
+			break;
+		default:
+			phy->pdata->use_extclk = init_param->xo_disable_use_ext_refclk_enable;
+	}
 	phy->pdata->dcxo_coarse = init_param->dcxo_coarse_and_fine_tune[0];
 	phy->pdata->dcxo_fine = init_param->dcxo_coarse_and_fine_tune[1];
 	phy->pdata->ad9361_clkout_mode = (enum ad9361_clkout)init_param->clk_output_mode_select;
@@ -369,7 +382,7 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy, AD9361_InitParam *init_p
 
 	ret = ad9361_spi_read(phy->spi, REG_PRODUCT_ID);
 	if ((ret & PRODUCT_ID_MASK) != PRODUCT_ID_9361) {
-		printf("%s : Unsupported PRODUCT_ID 0x%X", "ad9361_init", (unsigned int)ret);
+		printf("%s : Unsupported PRODUCT_ID 0x%X", __func__, (unsigned int)ret);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -406,7 +419,7 @@ out:
 	free(phy->clk_refin);
 	free(phy->pdata);
 	free(phy);
-	printf("%s : AD9361 initialization error\n", "ad9361_init");
+	printf("%s : AD936x initialization error\n", __func__);
 
 	return -ENODEV;
 }
@@ -483,10 +496,12 @@ int32_t ad9361_set_en_state_machine_mode (struct ad9361_rf_phy *phy,
 int32_t ad9361_get_en_state_machine_mode (struct ad9361_rf_phy *phy,
 										  uint32_t *mode)
 {
-	uint8_t ensm_state = phy->curr_ensm_state;
+	uint8_t ensm_state;
 	bool pinctrl = false;
 	int32_t ret;
 
+	ensm_state = ad9361_spi_read(phy->spi, REG_STATE);
+	ensm_state &= ENSM_STATE(~0);
 	ret = ad9361_spi_read(phy->spi, REG_ENSM_CONFIG_1);
 	if ((ret & ENABLE_ENSM_PIN_CTRL) == ENABLE_ENSM_PIN_CTRL)
 		pinctrl = true;
